@@ -2,12 +2,12 @@ import "dotenv/config";
 import { neon } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
 
-const url = process.env.DATABASE_URL;
+const url = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
 const email = process.env.ADMIN_EMAIL;
 const password = process.env.ADMIN_PASSWORD;
 
 if (!url || !email || !password) {
-  console.error("Set DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD in your .env first.");
+  console.error("Set NETLIFY_DATABASE_URL (or DATABASE_URL), ADMIN_EMAIL, ADMIN_PASSWORD in .env first.");
   process.exit(1);
 }
 

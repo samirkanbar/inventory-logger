@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const url = process.env.DATABASE_URL;
+const url = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
 if (!url) {
-  console.error("DATABASE_URL is not set. Copy .env.example to .env and fill it in.");
+  console.error("No DB URL set. Put NETLIFY_DATABASE_URL or DATABASE_URL in .env.");
   process.exit(1);
 }
 
