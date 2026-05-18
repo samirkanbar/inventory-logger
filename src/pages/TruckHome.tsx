@@ -39,7 +39,6 @@ export default function TruckHome() {
 
   const grouped = useMemo(() => groupByCategory(filtered), [filtered]);
 
-  // When searching, force all sections containing matches to render open.
   function isOpen(category: string) {
     if (q.length > 0) return true;
     return expanded.has(category);
@@ -84,7 +83,6 @@ export default function TruckHome() {
     setTimeout(() => setFlash(null), 3500);
   }
 
-  // Per-category cart count for the badge on each header.
   function cartCountFor(category: string): number {
     let n = 0;
     for (const it of items) {
@@ -96,13 +94,13 @@ export default function TruckHome() {
   }
 
   return (
-    <div className="min-h-full pb-32 touch bg-gradient-to-b from-amber-50 via-stone-50 to-orange-50">
+    <div className="min-h-full pb-32 touch bg-gradient-to-b from-amber-50 via-stone-100 to-amber-100/50">
       {/* Top bar */}
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-stone-200 shadow-sm">
+      <header className="sticky top-0 z-10 bg-stone-950/95 backdrop-blur border-b border-stone-800 shadow-md">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
-            <div className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Truck</div>
-            <div className="font-semibold text-slate-900">{me?.label}</div>
+            <div className="text-xs uppercase tracking-wider text-amber-400 font-semibold">Truck</div>
+            <div className="font-semibold text-stone-100">{me?.label}</div>
           </div>
           <LogoutButton />
         </div>
@@ -112,14 +110,14 @@ export default function TruckHome() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search items…"
-            className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            className="w-full rounded-xl border border-stone-700 bg-stone-900 text-stone-100 placeholder:text-stone-500 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-900/50"
           />
         </div>
       </header>
 
       {flash && (
         <div className="max-w-2xl mx-auto mt-3 px-4">
-          <div className="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 text-sm font-medium">
+          <div className="rounded-xl bg-amber-100 border border-amber-300 text-amber-900 px-4 py-3 text-sm font-medium shadow-sm">
             {flash}
           </div>
         </div>
@@ -127,28 +125,28 @@ export default function TruckHome() {
 
       <main className="max-w-2xl mx-auto p-4">
         {loading ? (
-          <div className="text-slate-500">Loading items…</div>
+          <div className="text-stone-600">Loading items…</div>
         ) : items.length === 0 ? (
-          <div className="text-slate-600 bg-white rounded-2xl border border-stone-200 p-6 text-center shadow-sm">
+          <div className="text-stone-700 bg-white rounded-2xl border border-stone-300 p-6 text-center shadow-sm">
             No items yet. Your admin needs to upload an inventory list first.
           </div>
         ) : (
           <>
             {q.length === 0 && grouped.length > 1 && (
               <div className="flex items-center justify-between mb-3">
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-stone-600">
                   {grouped.length} categor{grouped.length === 1 ? "y" : "ies"} · tap to expand
                 </div>
                 <div className="flex gap-2 text-xs">
                   <button
                     onClick={expandAll}
-                    className="rounded-lg bg-white border border-stone-200 px-2.5 py-1 text-slate-700 hover:bg-stone-50"
+                    className="rounded-lg bg-white border border-stone-300 px-2.5 py-1 text-stone-800 hover:bg-stone-50"
                   >
                     Expand all
                   </button>
                   <button
                     onClick={collapseAll}
-                    className="rounded-lg bg-white border border-stone-200 px-2.5 py-1 text-slate-700 hover:bg-stone-50"
+                    className="rounded-lg bg-white border border-stone-300 px-2.5 py-1 text-stone-800 hover:bg-stone-50"
                   >
                     Collapse all
                   </button>
@@ -173,13 +171,13 @@ export default function TruckHome() {
                       <div className="flex items-center gap-3 min-w-0">
                         <span className={`w-2.5 h-2.5 rounded-full ${color.dot} shrink-0`} />
                         <span className="font-semibold truncate">{category}</span>
-                        <span className="text-xs opacity-75 shrink-0">
+                        <span className="text-xs opacity-70 shrink-0">
                           {groupItems.length} item{groupItems.length === 1 ? "" : "s"}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {cartN > 0 && (
-                          <span className="inline-flex items-center text-xs font-medium bg-emerald-600 text-white px-2 py-0.5 rounded-full">
+                          <span className="inline-flex items-center text-xs font-semibold bg-stone-900 text-amber-100 px-2 py-0.5 rounded-full">
                             {cartN} in cart
                           </span>
                         )}
@@ -193,32 +191,45 @@ export default function TruckHome() {
                     </button>
 
                     {open && (
-                      <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 ${color.bg}`}>
+                      <ul className={`divide-y divide-stone-200 ${color.bg}`}>
                         {groupItems.map((it) => {
                           const inCart = cart.get(it.id);
                           return (
                             <li key={it.id}>
-                              <button
-                                onClick={() => setPendingItem(it)}
-                                className={`w-full text-left rounded-xl border bg-white px-4 py-3 transition shadow-sm hover:shadow-md ${
-                                  inCart
-                                    ? "border-emerald-500 ring-2 ring-emerald-100"
-                                    : "border-stone-200 hover:border-indigo-400"
+                              <div
+                                className={`flex items-center justify-between gap-3 px-4 py-3 transition ${
+                                  inCart ? "bg-amber-50/80" : "bg-white"
                                 }`}
                               >
-                                <div className="font-medium text-slate-900">{it.name}</div>
-                                {it.unit && (
-                                  <div className="text-xs text-slate-500 mt-0.5">per {it.unit}</div>
-                                )}
-                                {inCart ? (
-                                  <div className="mt-2 text-sm text-emerald-700 font-medium">
-                                    Added · qty {inCart.quantity}{" "}
-                                    <span className="text-stone-400 font-normal">(tap to edit)</span>
-                                  </div>
-                                ) : (
-                                  <div className="mt-2 text-sm text-indigo-600 font-medium">Tap to add</div>
-                                )}
-                              </button>
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-medium text-stone-900 truncate">{it.name}</div>
+                                  {it.unit && (
+                                    <div className="text-xs text-stone-500 mt-0.5">per {it.unit}</div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {inCart ? (
+                                    <>
+                                      <span className="text-sm font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg tabular-nums">
+                                        × {inCart.quantity}
+                                      </span>
+                                      <button
+                                        onClick={() => setPendingItem(it)}
+                                        className="text-xs font-semibold rounded-lg bg-stone-900 text-amber-100 px-3 py-2 hover:bg-stone-800 shadow-sm"
+                                      >
+                                        Edit
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      onClick={() => setPendingItem(it)}
+                                      className="text-sm font-semibold rounded-lg bg-stone-900 text-amber-100 px-4 py-2 hover:bg-stone-800 shadow-sm"
+                                    >
+                                      + Add
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
                             </li>
                           );
                         })}
@@ -229,7 +240,7 @@ export default function TruckHome() {
               })}
 
               {grouped.length === 0 && (
-                <div className="text-slate-500 text-sm bg-white border border-stone-200 rounded-2xl p-6 text-center shadow-sm">
+                <div className="text-stone-600 text-sm bg-white border border-stone-300 rounded-2xl p-6 text-center shadow-sm">
                   No matches for "{query}".
                 </div>
               )}
@@ -240,22 +251,22 @@ export default function TruckHome() {
 
       {/* Sticky cart footer */}
       {cartLines.length > 0 && (
-        <div className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-stone-200 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+        <div className="fixed bottom-0 inset-x-0 bg-stone-950/95 backdrop-blur border-t border-stone-800 shadow-[0_-4px_16px_rgba(0,0,0,0.2)]">
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
             <div className="text-sm">
-              <div className="font-semibold text-slate-900">
+              <div className="font-semibold text-stone-100">
                 {cartLines.length} item{cartLines.length === 1 ? "" : "s"} · {totalQty} qty
               </div>
               <button
                 onClick={() => setCart(new Map())}
-                className="text-xs text-rose-600 underline"
+                className="text-xs text-amber-400 hover:text-amber-300 underline"
               >
                 Clear
               </button>
             </div>
             <button
               onClick={() => setConfirming(true)}
-              className="rounded-xl bg-emerald-600 text-white font-medium px-5 py-3 shadow-sm hover:bg-emerald-700"
+              className="rounded-xl bg-amber-700 text-white font-semibold px-5 py-3 shadow-md hover:bg-amber-800"
             >
               Review & submit
             </button>

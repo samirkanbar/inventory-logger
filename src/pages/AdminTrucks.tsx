@@ -73,7 +73,7 @@ export default function AdminTrucks() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-slate-900">Trucks</h1>
+      <h1 className="text-2xl font-semibold text-stone-900">Trucks</h1>
       <p className="text-sm text-slate-600 mt-1">Create one login per truck — share with the crew.</p>
 
       <form onSubmit={onCreate} className="mt-4 bg-white rounded-2xl border border-stone-200 shadow-sm p-4 grid sm:grid-cols-3 gap-3">
@@ -82,28 +82,28 @@ export default function AdminTrucks() {
           placeholder="Display name (e.g. Truck 42)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+          className="rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
         />
         <input
           required
           placeholder="Username (lowercase)"
           value={username}
           onChange={(e) => setUsername(e.target.value.toLowerCase())}
-          className="rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+          className="rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
         />
         <input
           required
           placeholder="Password (min 6)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+          className="rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
         />
         <div className="sm:col-span-3 flex items-center justify-between gap-3">
           {err && <div className="text-sm text-rose-600">{err}</div>}
           <button
             disabled={busy}
             type="submit"
-            className="ml-auto rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700 shadow-sm disabled:opacity-60"
+            className="ml-auto rounded-xl bg-stone-900 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-stone-800 shadow-sm disabled:opacity-60"
           >
             {busy ? "Creating…" : "Create truck"}
           </button>
@@ -125,7 +125,7 @@ export default function AdminTrucks() {
         </div>
       )}
 
-      <h2 className="mt-8 text-lg font-semibold text-slate-900">All trucks</h2>
+      <h2 className="mt-8 text-lg font-semibold text-stone-900">All trucks</h2>
       {loading ? (
         <div className="text-slate-500 mt-3">Loading…</div>
       ) : trucks.length === 0 ? (
@@ -145,8 +145,8 @@ export default function AdminTrucks() {
             <tbody className="divide-y divide-stone-100">
               {trucks.map((t) => (
                 <tr key={t.id} className={`${t.active ? "" : "opacity-50"} hover:bg-amber-50/40`}>
-                  <td className="px-4 py-3 text-slate-900 font-medium">{t.name}</td>
-                  <td className="px-4 py-3 font-mono text-indigo-700">{t.username}</td>
+                  <td className="px-4 py-3 text-stone-900 font-medium">{t.name}</td>
+                  <td className="px-4 py-3 font-mono text-amber-800">{t.username}</td>
                   <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                     {formatDateTime(t.created_at)}
                   </td>

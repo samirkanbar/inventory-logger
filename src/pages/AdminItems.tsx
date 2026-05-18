@@ -147,7 +147,7 @@ export default function AdminItems() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-slate-900">Items & prices</h1>
+      <h1 className="text-2xl font-semibold text-stone-900">Items & prices</h1>
       <p className="text-sm text-slate-600 mt-1">
         Upload a .csv or .xlsx with columns <code className="bg-stone-100 px-1.5 py-0.5 rounded">name</code>,{" "}
         <code className="bg-stone-100 px-1.5 py-0.5 rounded">price</code>, and optionally{" "}
@@ -224,7 +224,7 @@ export default function AdminItems() {
             <button
               onClick={doImport}
               disabled={importing}
-              className="mt-3 rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700 shadow-sm"
+              className="mt-3 rounded-xl bg-stone-900 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-stone-800 shadow-sm"
             >
               {importing ? "Importing…" : `Import ${preview.length} item${preview.length === 1 ? "" : "s"}`}
             </button>
@@ -234,7 +234,7 @@ export default function AdminItems() {
         {msg && <div className="mt-3 text-sm text-slate-700">{msg}</div>}
       </div>
 
-      <h2 className="mt-8 text-lg font-semibold text-slate-900">Current items</h2>
+      <h2 className="mt-8 text-lg font-semibold text-stone-900">Current items</h2>
       {loading ? (
         <div className="text-slate-500 mt-3">Loading…</div>
       ) : items.length === 0 ? (
@@ -257,7 +257,7 @@ export default function AdminItems() {
                 const c = colorForCategory(it.category);
                 return (
                   <tr key={it.id} className={it.active ? "" : "opacity-50"}>
-                    <td className="px-4 py-3 text-slate-900">{it.name}</td>
+                    <td className="px-4 py-3 text-stone-900">{it.name}</td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => editCategory(it)}

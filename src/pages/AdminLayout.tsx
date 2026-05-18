@@ -5,14 +5,14 @@ import { LogoutButton } from "../App";
 export default function AdminLayout() {
   const { me } = useAuth();
   return (
-    <div className="min-h-full bg-gradient-to-b from-stone-50 to-amber-50/40">
-      <header className="bg-white/90 backdrop-blur border-b border-stone-200 shadow-sm">
+    <div className="min-h-full bg-gradient-to-b from-amber-50 via-stone-100 to-amber-100/60">
+      <header className="bg-stone-950 border-b border-stone-800 shadow-md">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="inline-block w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600" />
+            <span className="inline-block w-7 h-7 rounded-lg bg-gradient-to-br from-amber-600 to-amber-800" />
             <div>
-              <div className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Admin</div>
-              <div className="font-semibold text-slate-900">{me?.label}</div>
+              <div className="text-xs uppercase tracking-wider text-amber-400 font-semibold">Admin</div>
+              <div className="font-semibold text-stone-100">{me?.label}</div>
             </div>
           </div>
           <LogoutButton />
@@ -29,8 +29,8 @@ export default function AdminLayout() {
               className={({ isActive }) =>
                 `px-3 py-2 rounded-lg font-medium transition ${
                   isActive
-                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-stone-100"
+                    ? "bg-amber-700 text-white shadow-sm"
+                    : "text-stone-300 hover:bg-stone-800 hover:text-amber-100"
                 }`
               }
             >

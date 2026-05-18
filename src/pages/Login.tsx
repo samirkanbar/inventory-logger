@@ -27,22 +27,22 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-full flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-amber-50 to-orange-100">
-      <div className="w-full max-w-sm bg-white border border-stone-200 rounded-3xl shadow-xl p-6 touch">
+    <div className="min-h-full flex items-center justify-center p-4 bg-gradient-to-br from-amber-100 via-stone-100 to-amber-200">
+      <div className="w-full max-w-sm bg-white border border-stone-300 rounded-3xl shadow-xl p-6 touch">
         <div className="flex items-center gap-2">
-          <span className="inline-block w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600" />
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Inventory Logger</h1>
+          <span className="inline-block w-8 h-8 rounded-xl bg-gradient-to-br from-stone-900 to-amber-800" />
+          <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Inventory Logger</h1>
         </div>
-        <p className="text-sm text-slate-500 mt-2">
+        <p className="text-sm text-stone-600 mt-2">
           {mode === "truck" ? "Truck sign-in" : "Admin sign-in"}
         </p>
 
-        <div className="mt-5 flex rounded-xl bg-stone-100 p-1 text-sm font-medium">
+        <div className="mt-5 flex rounded-xl bg-stone-200 p-1 text-sm font-medium">
           <button
             type="button"
             onClick={() => setMode("truck")}
             className={`flex-1 py-2 rounded-lg transition ${
-              mode === "truck" ? "bg-white shadow text-indigo-700" : "text-slate-500 hover:text-slate-700"
+              mode === "truck" ? "bg-white shadow text-stone-900" : "text-stone-600 hover:text-stone-900"
             }`}
           >
             Truck
@@ -51,7 +51,7 @@ export default function Login() {
             type="button"
             onClick={() => setMode("admin")}
             className={`flex-1 py-2 rounded-lg transition ${
-              mode === "admin" ? "bg-white shadow text-indigo-700" : "text-slate-500 hover:text-slate-700"
+              mode === "admin" ? "bg-white shadow text-stone-900" : "text-stone-600 hover:text-stone-900"
             }`}
           >
             Admin
@@ -67,7 +67,7 @@ export default function Login() {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
             />
           ) : (
             <input
@@ -77,7 +77,7 @@ export default function Login() {
               placeholder="Truck username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
             />
           )}
           <input
@@ -87,13 +87,13 @@ export default function Login() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            className="w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
           />
-          {error && <div className="text-sm text-rose-600">{error}</div>}
+          {error && <div className="text-sm text-red-700">{error}</div>}
           <button
             disabled={busy}
             type="submit"
-            className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold py-3 hover:from-indigo-700 hover:to-violet-700 shadow-md disabled:opacity-60"
+            className="w-full rounded-xl bg-stone-900 text-amber-50 font-semibold py-3 hover:bg-stone-800 shadow-md disabled:opacity-60"
           >
             {busy ? "Signing in…" : "Sign in"}
           </button>

@@ -31,7 +31,7 @@ export default function QuantityModal({ itemName, initial, onCancel, onConfirm }
         className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6"
       >
         <div className="text-sm text-slate-500">How many did you receive?</div>
-        <div className="text-xl font-semibold text-slate-900 mt-1">{itemName}</div>
+        <div className="text-xl font-semibold text-stone-900 mt-1">{itemName}</div>
 
         <div className="mt-5 flex items-center gap-3 justify-center">
           <button
@@ -49,7 +49,7 @@ export default function QuantityModal({ itemName, initial, onCancel, onConfirm }
             min={1}
             value={qty}
             onChange={(e) => setQty(Math.max(1, Math.round(Number(e.target.value) || 1)))}
-            className="w-28 text-center text-3xl font-semibold rounded-xl border border-stone-300 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
+            className="w-28 text-center text-3xl font-semibold rounded-xl border border-stone-300 py-2 focus:border-stone-900 focus:ring-2 focus:ring-stone-200 outline-none"
           />
           <button
             type="button"
@@ -71,7 +71,7 @@ export default function QuantityModal({ itemName, initial, onCancel, onConfirm }
           </button>
           <button
             type="submit"
-            className="flex-1 rounded-xl bg-indigo-600 text-white font-medium py-3 hover:bg-indigo-700 shadow-sm"
+            className="flex-1 rounded-xl bg-stone-900 text-amber-50 font-semibold py-3 hover:bg-stone-800 shadow-sm"
           >
             Add
           </button>

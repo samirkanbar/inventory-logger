@@ -45,11 +45,11 @@ export default function AdminSubmissions() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold text-slate-900">Submissions</h1>
+        <h1 className="text-2xl font-semibold text-stone-900">Submissions</h1>
         <select
           value={truckFilter}
           onChange={(e) => setTruckFilter(e.target.value)}
-          className="rounded-xl border border-stone-300 px-3 py-2 text-sm bg-white shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
+          className="rounded-xl border border-stone-300 px-3 py-2 text-sm bg-white shadow-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-200 outline-none"
         >
           <option value="">All trucks</option>
           {trucks.map((t) => (
@@ -85,14 +85,14 @@ export default function AdminSubmissions() {
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                     {formatDateTime(r.submitted_at)}
                   </td>
-                  <td className="px-4 py-3 text-slate-900">{r.truck_name}</td>
+                  <td className="px-4 py-3 text-stone-900">{r.truck_name}</td>
                   <td className="px-4 py-3">
-                    <Link className="text-indigo-700 hover:underline font-medium" to={`/admin/submissions/${r.id}`}>
+                    <Link className="text-amber-800 hover:underline font-medium" to={`/admin/submissions/${r.id}`}>
                       {r.title}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">{r.total_qty}</td>
-                  <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-700">
+                  <td className="px-4 py-3 text-right tabular-nums font-bold text-amber-800">
                     {formatMoney(r.total_cents)}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -100,7 +100,7 @@ export default function AdminSubmissions() {
                       onClick={() =>
                         downloadFile(`/export?id=${r.id}`, `submission-${r.id}.xlsx`)
                       }
-                      className="text-sm rounded-lg bg-emerald-600 text-white px-3 py-1.5 hover:bg-emerald-700 shadow-sm"
+                      className="text-sm rounded-lg bg-stone-900 text-amber-50 px-3 py-1.5 hover:bg-stone-800 shadow-sm"
                     >
                       Excel
                     </button>

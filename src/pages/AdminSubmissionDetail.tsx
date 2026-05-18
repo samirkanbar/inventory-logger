@@ -38,19 +38,19 @@ export default function AdminSubmissionDetail() {
   const s = data.submission;
   return (
     <div>
-      <Link to="/admin/submissions" className="text-sm text-indigo-600 hover:text-indigo-800">
+      <Link to="/admin/submissions" className="text-sm text-amber-800 hover:text-amber-900">
         ← All submissions
       </Link>
       <div className="mt-2 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">{s.title}</h1>
+          <h1 className="text-2xl font-semibold text-stone-900">{s.title}</h1>
           <div className="text-sm text-slate-500 mt-1">
             {s.truck_name} ({s.truck_username}) · {formatDateTime(s.submitted_at)} · #{s.id}
           </div>
         </div>
         <button
           onClick={() => downloadFile(`/export?id=${s.id}`, `submission-${s.id}.xlsx`)}
-          className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-700 shadow-sm"
+          className="rounded-xl bg-stone-900 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-stone-800 shadow-sm"
         >
           Download Excel
         </button>
@@ -69,7 +69,7 @@ export default function AdminSubmissionDetail() {
           <tbody className="divide-y divide-stone-100">
             {data.lines.map((l) => (
               <tr key={l.id} className="hover:bg-amber-50/40">
-                <td className="px-4 py-3 text-slate-900">{l.name}</td>
+                <td className="px-4 py-3 text-stone-900">{l.name}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{l.quantity}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{formatMoney(l.unit_price_cents)}</td>
                 <td className="px-4 py-3 text-right tabular-nums font-medium">
@@ -78,12 +78,12 @@ export default function AdminSubmissionDetail() {
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-emerald-50">
+          <tfoot className="bg-amber-100">
             <tr>
-              <td className="px-4 py-3 font-medium text-slate-700" colSpan={3}>
+              <td className="px-4 py-3 font-medium text-stone-800" colSpan={3}>
                 Total
               </td>
-              <td className="px-4 py-3 text-right tabular-nums font-bold text-emerald-700">
+              <td className="px-4 py-3 text-right tabular-nums font-bold text-amber-900">
                 {formatMoney(data.total_cents)}
               </td>
             </tr>
