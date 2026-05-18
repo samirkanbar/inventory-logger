@@ -110,14 +110,19 @@ export default async (req: Request) => {
     }
 
     const ids = items.map((i) => i.item_id);
+    // Only items that are both active AND assigned to this truck are allowed.
     const itemRows = (await sql`
-      SELECT id, name, price_cents, active FROM items WHERE id = ANY(${ids}::bigint[])
+      SELECT i.id, i.name, i.price_cents, i.active
+      FROM items i
+      JOIN truck_items ti ON ti.item_id = i.id
+      WHERE ti.truck_id = ${Number(auth.user.sub)}
+        AND i.id = ANY(${ids}::bigint[])
     `) as Array<{ id: number; name: string; price_cents: number; active: boolean }>;
 
     const byId = new Map(itemRows.map((r) => [Number(r.id), r]));
     for (const it of items) {
       const row = byId.get(it.item_id);
-      if (!row) return error(`Unknown item id ${it.item_id}`, 400);
+      if (!row) return error(`Item id ${it.item_id} is not available for this truck`, 400);
       if (!row.active) return error(`Item "${row.name}" is no longer available`, 400);
     }
 

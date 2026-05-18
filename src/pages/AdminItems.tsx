@@ -11,6 +11,14 @@ interface Item {
   unit: string | null;
   category: string | null;
   active: boolean;
+  truck_ids: number[];
+}
+
+interface Truck {
+  id: number;
+  name: string;
+  username: string;
+  active: boolean;
 }
 
 interface ParsedRow {
@@ -81,18 +89,25 @@ function parseSheet(buf: ArrayBuffer): { rows: ParsedRow[]; errors: string[] } {
 
 export default function AdminItems() {
   const [items, setItems] = useState<Item[]>([]);
+  const [trucks, setTrucks] = useState<Truck[]>([]);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<ParsedRow[] | null>(null);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const [replace, setReplace] = useState(false);
+  const [selectedTrucks, setSelectedTrucks] = useState<Set<number>>(new Set());
   const [msg, setMsg] = useState<string | null>(null);
+  const [editingAssignFor, setEditingAssignFor] = useState<Item | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function load() {
     setLoading(true);
-    const r = await api<{ items: Item[] }>("/items?all=1");
-    setItems(r.items);
+    const [i, t] = await Promise.all([
+      api<{ items: Item[] }>("/items?all=1"),
+      api<{ trucks: Truck[] }>("/trucks"),
+    ]);
+    setItems(i.items);
+    setTrucks(t.trucks);
     setLoading(false);
   }
 
@@ -110,15 +125,42 @@ export default function AdminItems() {
     setMsg(null);
   }
 
+  function toggleSelected(id: number) {
+    setSelectedTrucks((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllTrucks() {
+    setSelectedTrucks(new Set(trucks.filter((t) => t.active).map((t) => t.id)));
+  }
+  function clearSelectedTrucks() {
+    setSelectedTrucks(new Set());
+  }
+
   async function doImport() {
     if (!preview || preview.length === 0) return;
+    if (selectedTrucks.size === 0) {
+      setMsg("Pick at least one truck to apply this import to.");
+      return;
+    }
     setImporting(true);
+    setMsg(null);
     try {
-      const r = await api<{ inserted: number; updated: number; total: number }>("/items", {
-        method: "POST",
-        json: { items: preview, replace },
-      });
-      setMsg(`Imported ${r.total} item${r.total === 1 ? "" : "s"}: ${r.inserted} new, ${r.updated} updated.`);
+      const truckIds = Array.from(selectedTrucks);
+      const r = await api<{ inserted: number; updated: number; total: number; assignments_added: number }>(
+        "/items",
+        { method: "POST", json: { items: preview, replace, truck_ids: truckIds } }
+      );
+      const truckNames = truckIds
+        .map((id) => trucks.find((t) => t.id === id)?.name || `#${id}`)
+        .join(", ");
+      setMsg(
+        `Imported ${r.total} item${r.total === 1 ? "" : "s"} (${r.inserted} new, ${r.updated} updated) → assigned to ${truckNames}.`
+      );
       setPreview(null);
       setParseErrors([]);
       if (fileRef.current) fileRef.current.value = "";
@@ -145,6 +187,16 @@ export default function AdminItems() {
     await load();
   }
 
+  async function saveAssignments(item: Item, newIds: number[]) {
+    await api("/items", { method: "PATCH", json: { id: item.id, truck_ids: newIds } });
+    setEditingAssignFor(null);
+    await load();
+  }
+
+  function truckNameFor(id: number) {
+    return trucks.find((t) => t.id === id)?.name || `#${id}`;
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-stone-900">Items & prices</h1>
@@ -152,7 +204,7 @@ export default function AdminItems() {
         Upload a .csv or .xlsx with columns <code className="bg-stone-100 px-1.5 py-0.5 rounded">name</code>,{" "}
         <code className="bg-stone-100 px-1.5 py-0.5 rounded">price</code>, and optionally{" "}
         <code className="bg-stone-100 px-1.5 py-0.5 rounded">unit</code> and{" "}
-        <code className="bg-stone-100 px-1.5 py-0.5 rounded">category</code>. Items here are what trucks can submit.
+        <code className="bg-stone-100 px-1.5 py-0.5 rounded">category</code>. Pick which trucks the items go to.
       </p>
 
       <div className="mt-4 bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
@@ -170,8 +222,57 @@ export default function AdminItems() {
               checked={replace}
               onChange={(e) => setReplace(e.target.checked)}
             />
-            Replace mode (deactivate items not in file)
+            Replace mode (un-assign other items from selected trucks)
           </label>
+        </div>
+
+        {/* Truck multi-select */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm font-medium text-stone-800">
+              Apply to truck{selectedTrucks.size === 1 ? "" : "s"}
+              {selectedTrucks.size > 0 && (
+                <span className="text-stone-500 font-normal"> · {selectedTrucks.size} selected</span>
+              )}
+            </div>
+            <div className="flex gap-2 text-xs">
+              <button
+                onClick={selectAllTrucks}
+                className="rounded-lg bg-stone-100 border border-stone-300 px-2.5 py-1 text-stone-700 hover:bg-stone-200"
+              >
+                Select all
+              </button>
+              <button
+                onClick={clearSelectedTrucks}
+                className="rounded-lg bg-stone-100 border border-stone-300 px-2.5 py-1 text-stone-700 hover:bg-stone-200"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+          {trucks.length === 0 ? (
+            <div className="text-sm text-stone-500">No trucks yet — create one in the Trucks tab first.</div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {trucks.map((t) => {
+                const selected = selectedTrucks.has(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => toggleSelected(t.id)}
+                    className={`text-sm rounded-full px-3 py-1.5 border transition ${
+                      selected
+                        ? "bg-amber-700 text-amber-50 border-amber-700 shadow-sm"
+                        : "bg-white text-stone-700 border-stone-300 hover:border-amber-500"
+                    } ${t.active ? "" : "opacity-50"}`}
+                  >
+                    {selected && <span className="mr-1">✓</span>}
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {parseErrors.length > 0 && (
@@ -223,10 +324,14 @@ export default function AdminItems() {
             </div>
             <button
               onClick={doImport}
-              disabled={importing}
-              className="mt-3 rounded-xl bg-amber-700 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-amber-800 shadow-sm"
+              disabled={importing || selectedTrucks.size === 0}
+              className="mt-3 rounded-xl bg-amber-700 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-amber-800 shadow-sm disabled:opacity-50"
             >
-              {importing ? "Importing…" : `Import ${preview.length} item${preview.length === 1 ? "" : "s"}`}
+              {importing
+                ? "Importing…"
+                : selectedTrucks.size === 0
+                ? "Pick at least one truck to import"
+                : `Import ${preview.length} item${preview.length === 1 ? "" : "s"} → ${selectedTrucks.size} truck${selectedTrucks.size === 1 ? "" : "s"}`}
             </button>
           </div>
         )}
@@ -248,6 +353,7 @@ export default function AdminItems() {
                 <th className="px-4 py-3 font-medium">Category</th>
                 <th className="px-4 py-3 font-medium">Unit</th>
                 <th className="px-4 py-3 font-medium text-right">Price</th>
+                <th className="px-4 py-3 font-medium">Trucks</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -270,6 +376,20 @@ export default function AdminItems() {
                     </td>
                     <td className="px-4 py-3 text-slate-500">{it.unit || "—"}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatMoney(it.price_cents)}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setEditingAssignFor(it)}
+                        className="text-xs rounded-lg bg-stone-100 border border-stone-300 text-stone-700 px-2.5 py-1 hover:bg-stone-200"
+                      >
+                        {it.truck_ids.length === 0 ? (
+                          <span className="text-rose-700">Unassigned</span>
+                        ) : it.truck_ids.length <= 3 ? (
+                          it.truck_ids.map(truckNameFor).join(", ")
+                        ) : (
+                          `${it.truck_ids.length} trucks`
+                        )}
+                      </button>
+                    </td>
                     <td className="px-4 py-3 text-slate-600">{it.active ? "Active" : "Inactive"}</td>
                     <td className="px-4 py-3 text-right">
                       <button
@@ -286,6 +406,101 @@ export default function AdminItems() {
           </table>
         </div>
       )}
+
+      {editingAssignFor && (
+        <AssignmentModal
+          item={editingAssignFor}
+          trucks={trucks}
+          onCancel={() => setEditingAssignFor(null)}
+          onSave={(ids) => saveAssignments(editingAssignFor, ids)}
+        />
+      )}
+    </div>
+  );
+}
+
+function AssignmentModal({
+  item,
+  trucks,
+  onCancel,
+  onSave,
+}: {
+  item: Item;
+  trucks: Truck[];
+  onCancel: () => void;
+  onSave: (ids: number[]) => void | Promise<void>;
+}) {
+  const [picked, setPicked] = useState<Set<number>>(new Set(item.truck_ids));
+  const [busy, setBusy] = useState(false);
+
+  function toggle(id: number) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function save() {
+    setBusy(true);
+    try {
+      await onSave(Array.from(picked));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-30 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
+        <div className="text-sm text-stone-500">Assign trucks</div>
+        <h2 className="text-xl font-semibold text-stone-900 mt-1">{item.name}</h2>
+        <p className="text-xs text-stone-500 mt-1">
+          Trucks selected here can see and submit this item.
+        </p>
+
+        {trucks.length === 0 ? (
+          <div className="mt-4 text-sm text-stone-500">No trucks exist yet.</div>
+        ) : (
+          <div className="mt-4 flex flex-wrap gap-2 max-h-72 overflow-y-auto">
+            {trucks.map((t) => {
+              const selected = picked.has(t.id);
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => toggle(t.id)}
+                  className={`text-sm rounded-full px-3 py-1.5 border transition ${
+                    selected
+                      ? "bg-amber-700 text-amber-50 border-amber-700"
+                      : "bg-white text-stone-700 border-stone-300 hover:border-amber-500"
+                  } ${t.active ? "" : "opacity-50"}`}
+                >
+                  {selected && <span className="mr-1">✓</span>}
+                  {t.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={busy}
+            className="flex-1 rounded-xl bg-stone-100 text-stone-700 font-medium py-2.5 hover:bg-stone-200 disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={busy}
+            className="flex-1 rounded-xl bg-amber-700 text-amber-50 font-semibold py-2.5 hover:bg-amber-800 disabled:opacity-60"
+          >
+            {busy ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

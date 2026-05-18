@@ -45,6 +45,21 @@ ALTER TABLE items ADD COLUMN IF NOT EXISTS category TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS items_name_unique ON items (LOWER(name));
 
+CREATE TABLE IF NOT EXISTS truck_items (
+  truck_id BIGINT NOT NULL REFERENCES trucks(id) ON DELETE CASCADE,
+  item_id  BIGINT NOT NULL REFERENCES items(id)  ON DELETE CASCADE,
+  PRIMARY KEY (truck_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS truck_items_truck_idx ON truck_items (truck_id);
+CREATE INDEX IF NOT EXISTS truck_items_item_idx  ON truck_items (item_id);
+
+-- One-time migration after deploying truck_items: any pre-existing items
+-- get assigned to every existing truck so the previous "everyone sees
+-- everything" behaviour is preserved. ON CONFLICT makes this safe to re-run.
+INSERT INTO truck_items (truck_id, item_id)
+SELECT t.id, i.id FROM trucks t CROSS JOIN items i
+ON CONFLICT DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS submissions (
   id            BIGSERIAL PRIMARY KEY,
   truck_id      BIGINT NOT NULL REFERENCES trucks(id) ON DELETE RESTRICT,

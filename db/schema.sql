@@ -32,6 +32,15 @@ ALTER TABLE items ADD COLUMN IF NOT EXISTS category TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS items_name_unique ON items (LOWER(name));
 
+-- Join table: which trucks can submit which items.
+CREATE TABLE IF NOT EXISTS truck_items (
+  truck_id BIGINT NOT NULL REFERENCES trucks(id) ON DELETE CASCADE,
+  item_id  BIGINT NOT NULL REFERENCES items(id)  ON DELETE CASCADE,
+  PRIMARY KEY (truck_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS truck_items_truck_idx ON truck_items (truck_id);
+CREATE INDEX IF NOT EXISTS truck_items_item_idx  ON truck_items (item_id);
+
 CREATE TABLE IF NOT EXISTS submissions (
   id            BIGSERIAL PRIMARY KEY,
   truck_id      BIGINT NOT NULL REFERENCES trucks(id) ON DELETE RESTRICT,
