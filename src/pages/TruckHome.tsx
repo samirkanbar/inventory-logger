@@ -208,23 +208,22 @@ export default function TruckHome() {
             )}
 
             <div className="space-y-3">
-              {grouped.map(({ category, items: groupItems, color }) => {
+              {grouped.map(({ category, items: groupItems }) => {
                 const open = isOpen(category);
                 const cartN = cartCountFor(category);
                 return (
                   <section
                     key={category}
-                    className={`rounded-2xl border ${color.border} overflow-hidden bg-white shadow-sm`}
+                    className="rounded-2xl border border-stone-300 overflow-hidden bg-white shadow-sm"
                   >
                     <button
                       onClick={() => toggle(category)}
                       disabled={q.length > 0}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 ${color.headerBg} ${color.headerText} text-left`}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-stone-100 text-stone-900 text-left"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className={`w-2.5 h-2.5 rounded-full ${color.dot} shrink-0`} />
-                        <span className="font-semibold truncate">{category}</span>
-                        <span className="text-xs opacity-70 shrink-0">
+                        <span className="font-bold tracking-tight uppercase text-sm truncate">{category}</span>
+                        <span className="text-xs font-medium text-stone-500 shrink-0">
                           {groupItems.length} item{groupItems.length === 1 ? "" : "s"}
                         </span>
                       </div>
@@ -244,7 +243,7 @@ export default function TruckHome() {
                     </button>
 
                     {open && (
-                      <ul className={`divide-y divide-amber-100 ${color.bg}`}>
+                      <ul className="divide-y divide-stone-200 bg-stone-50">
                         {groupItems.map((it) => {
                           const inCart = cart.get(it.id);
                           const qty = inCart?.quantity ?? 0;
