@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { api } from "../api";
 import { formatMoney, parseMoneyToCents } from "../money";
+import { colorForCategory, categoryLabel } from "../categories";
 
 interface Item {
   id: number;
   name: string;
   price_cents: number;
   unit: string | null;
+  category: string | null;
   active: boolean;
 }
 
@@ -15,11 +17,13 @@ interface ParsedRow {
   name: string;
   price_cents: number;
   unit?: string | null;
+  category?: string | null;
 }
 
 const PRICE_KEYS = ["price", "cost", "unit_price", "unit price", "price ($)"];
 const NAME_KEYS = ["name", "item", "item name", "product", "description"];
 const UNIT_KEYS = ["unit", "uom", "size"];
+const CATEGORY_KEYS = ["category", "cat", "group", "section", "type"];
 
 function pickKey(obj: Record<string, unknown>, candidates: string[]): string | null {
   const lower = Object.keys(obj).reduce<Record<string, string>>((acc, k) => {
@@ -48,6 +52,7 @@ function parseSheet(buf: ArrayBuffer): { rows: ParsedRow[]; errors: string[] } {
   const nameKey = pickKey(sample, NAME_KEYS);
   const priceKey = pickKey(sample, PRICE_KEYS);
   const unitKey = pickKey(sample, UNIT_KEYS);
+  const categoryKey = pickKey(sample, CATEGORY_KEYS);
 
   if (!nameKey || !priceKey) {
     errors.push(
@@ -68,7 +73,8 @@ function parseSheet(buf: ArrayBuffer): { rows: ParsedRow[]; errors: string[] } {
       continue;
     }
     const unit = unitKey ? String(r[unitKey] ?? "").trim() || null : null;
-    rows.push({ name, price_cents: cents, unit });
+    const category = categoryKey ? String(r[categoryKey] ?? "").trim() || null : null;
+    rows.push({ name, price_cents: cents, unit, category });
   }
   return { rows, errors };
 }
@@ -129,16 +135,27 @@ export default function AdminItems() {
     await load();
   }
 
+  async function editCategory(item: Item) {
+    const next = prompt(`Category for "${item.name}"? (blank to clear)`, item.category || "");
+    if (next === null) return;
+    await api("/items", {
+      method: "PATCH",
+      json: { id: item.id, category: next.trim() || null },
+    });
+    await load();
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-slate-900">Items & prices</h1>
-      <p className="text-sm text-slate-500 mt-1">
-        Upload a .csv or .xlsx with columns <code className="bg-slate-100 px-1 py-0.5 rounded">name</code>,{" "}
-        <code className="bg-slate-100 px-1 py-0.5 rounded">price</code>, and optionally{" "}
-        <code className="bg-slate-100 px-1 py-0.5 rounded">unit</code>. Items here are what trucks can submit.
+      <p className="text-sm text-slate-600 mt-1">
+        Upload a .csv or .xlsx with columns <code className="bg-stone-100 px-1.5 py-0.5 rounded">name</code>,{" "}
+        <code className="bg-stone-100 px-1.5 py-0.5 rounded">price</code>, and optionally{" "}
+        <code className="bg-stone-100 px-1.5 py-0.5 rounded">unit</code> and{" "}
+        <code className="bg-stone-100 px-1.5 py-0.5 rounded">category</code>. Items here are what trucks can submit.
       </p>
 
-      <div className="mt-4 bg-white rounded-2xl border border-slate-200 p-4">
+      <div className="mt-4 bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
         <div className="flex items-center gap-3 flex-wrap">
           <input
             ref={fileRef}
@@ -158,7 +175,7 @@ export default function AdminItems() {
         </div>
 
         {parseErrors.length > 0 && (
-          <ul className="mt-3 text-sm text-red-700 list-disc pl-5">
+          <ul className="mt-3 text-sm text-rose-700 list-disc pl-5">
             {parseErrors.map((e, i) => (
               <li key={i}>{e}</li>
             ))}
@@ -170,30 +187,44 @@ export default function AdminItems() {
             <div className="text-sm text-slate-700 mb-2">
               Preview ({preview.length} row{preview.length === 1 ? "" : "s"}):
             </div>
-            <div className="max-h-60 overflow-auto border border-slate-200 rounded-lg">
+            <div className="max-h-60 overflow-auto border border-stone-200 rounded-lg">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 sticky top-0">
+                <thead className="bg-stone-50 sticky top-0">
                   <tr className="text-left text-slate-600">
                     <th className="px-3 py-2">Name</th>
+                    <th className="px-3 py-2">Category</th>
                     <th className="px-3 py-2">Unit</th>
                     <th className="px-3 py-2 text-right">Price</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {preview.slice(0, 100).map((r, i) => (
-                    <tr key={i}>
-                      <td className="px-3 py-2">{r.name}</td>
-                      <td className="px-3 py-2 text-slate-500">{r.unit || "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatMoney(r.price_cents)}</td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-stone-100">
+                  {preview.slice(0, 100).map((r, i) => {
+                    const c = colorForCategory(r.category);
+                    return (
+                      <tr key={i}>
+                        <td className="px-3 py-2">{r.name}</td>
+                        <td className="px-3 py-2">
+                          {r.category ? (
+                            <span className={`inline-flex items-center gap-1.5 ${c.headerBg} ${c.headerText} text-xs font-medium px-2 py-0.5 rounded-full`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                              {r.category}
+                            </span>
+                          ) : (
+                            <span className="text-stone-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-slate-500">{r.unit || "—"}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatMoney(r.price_cents)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
             <button
               onClick={doImport}
               disabled={importing}
-              className="mt-3 rounded-xl bg-slate-900 text-white px-4 py-2 text-sm font-medium hover:bg-slate-800"
+              className="mt-3 rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700 shadow-sm"
             >
               {importing ? "Importing…" : `Import ${preview.length} item${preview.length === 1 ? "" : "s"}`}
             </button>
@@ -209,34 +240,48 @@ export default function AdminItems() {
       ) : items.length === 0 ? (
         <div className="text-slate-500 mt-3">No items yet. Upload a file above.</div>
       ) : (
-        <div className="mt-3 bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="mt-3 bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-600">
+            <thead className="bg-stone-50 text-left text-slate-600">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Category</th>
                 <th className="px-4 py-3 font-medium">Unit</th>
                 <th className="px-4 py-3 font-medium text-right">Price</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {items.map((it) => (
-                <tr key={it.id} className={it.active ? "" : "opacity-50"}>
-                  <td className="px-4 py-3 text-slate-900">{it.name}</td>
-                  <td className="px-4 py-3 text-slate-500">{it.unit || "—"}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatMoney(it.price_cents)}</td>
-                  <td className="px-4 py-3 text-slate-600">{it.active ? "Active" : "Inactive"}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => toggleActive(it)}
-                      className="text-xs rounded-lg bg-slate-100 text-slate-700 px-3 py-1.5 hover:bg-slate-200"
-                    >
-                      {it.active ? "Deactivate" : "Activate"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-stone-100">
+              {items.map((it) => {
+                const c = colorForCategory(it.category);
+                return (
+                  <tr key={it.id} className={it.active ? "" : "opacity-50"}>
+                    <td className="px-4 py-3 text-slate-900">{it.name}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => editCategory(it)}
+                        className={`inline-flex items-center gap-1.5 ${c.headerBg} ${c.headerText} text-xs font-medium px-2 py-0.5 rounded-full hover:opacity-80`}
+                        title="Click to change"
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                        {categoryLabel(it.category)}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">{it.unit || "—"}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatMoney(it.price_cents)}</td>
+                    <td className="px-4 py-3 text-slate-600">{it.active ? "Active" : "Inactive"}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => toggleActive(it)}
+                        className="text-xs rounded-lg bg-stone-100 text-slate-700 px-3 py-1.5 hover:bg-stone-200"
+                      >
+                        {it.active ? "Deactivate" : "Activate"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

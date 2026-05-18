@@ -23,7 +23,7 @@ export function preflight(req: Request) {
 }
 
 export function binary(buf: ArrayBuffer | Uint8Array, filename: string, contentType: string) {
-  return new Response(buf, {
+  return new Response(buf as BodyInit, {
     status: 200,
     headers: {
       ...CORS,

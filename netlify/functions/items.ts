@@ -6,6 +6,7 @@ interface ImportRow {
   name: string;
   price_cents: number;
   unit?: string | null;
+  category?: string | null;
 }
 
 export default async (req: Request) => {
@@ -20,8 +21,8 @@ export default async (req: Request) => {
     const url = new URL(req.url);
     const showAll = auth.user.role === "admin" && url.searchParams.get("all") === "1";
     const rows = showAll
-      ? await sql`SELECT id, name, price_cents, unit, active FROM items ORDER BY active DESC, LOWER(name) ASC`
-      : await sql`SELECT id, name, price_cents, unit, active FROM items WHERE active = TRUE ORDER BY LOWER(name) ASC`;
+      ? await sql`SELECT id, name, price_cents, unit, category, active FROM items ORDER BY active DESC, LOWER(COALESCE(category, 'zzz')) ASC, LOWER(name) ASC`
+      : await sql`SELECT id, name, price_cents, unit, category, active FROM items WHERE active = TRUE ORDER BY LOWER(COALESCE(category, 'zzz')) ASC, LOWER(name) ASC`;
     return json({ items: rows });
   }
 
@@ -45,11 +46,12 @@ export default async (req: Request) => {
       const name = String(r?.name ?? "").trim();
       const price = Math.round(Number(r?.price_cents));
       const unit = r?.unit ? String(r.unit).trim() : null;
+      const category = r?.category ? String(r.category).trim() : null;
       if (!name) return error(`Row missing name: ${JSON.stringify(r)}`, 400);
       if (!Number.isFinite(price) || price < 0) {
         return error(`Invalid price_cents for "${name}"`, 400);
       }
-      cleaned.push({ name, price_cents: price, unit });
+      cleaned.push({ name, price_cents: price, unit, category });
     }
 
     // Upsert by lower(name). "replace" mode deactivates items not present in the new sheet.
@@ -61,11 +63,12 @@ export default async (req: Request) => {
     let updated = 0;
     for (const row of cleaned) {
       const result = await sql`
-        INSERT INTO items (name, price_cents, unit, active, updated_at)
-        VALUES (${row.name}, ${row.price_cents}, ${row.unit}, TRUE, NOW())
+        INSERT INTO items (name, price_cents, unit, category, active, updated_at)
+        VALUES (${row.name}, ${row.price_cents}, ${row.unit}, ${row.category}, TRUE, NOW())
         ON CONFLICT (LOWER(name)) DO UPDATE
           SET price_cents = EXCLUDED.price_cents,
               unit        = EXCLUDED.unit,
+              category    = EXCLUDED.category,
               active      = TRUE,
               updated_at  = NOW()
         RETURNING (xmax = 0) AS inserted
@@ -93,6 +96,10 @@ export default async (req: Request) => {
     if (Number.isFinite(Number(body?.price_cents))) {
       const p = Math.round(Number(body.price_cents));
       await sql`UPDATE items SET price_cents = ${p}, updated_at = NOW() WHERE id = ${id}`;
+    }
+    if (typeof body?.category === "string" || body?.category === null) {
+      const cat = body.category === null ? null : String(body.category).trim() || null;
+      await sql`UPDATE items SET category = ${cat}, updated_at = NOW() WHERE id = ${id}`;
     }
     return json({ ok: true });
   }

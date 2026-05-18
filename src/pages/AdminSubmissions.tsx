@@ -49,7 +49,7 @@ export default function AdminSubmissions() {
         <select
           value={truckFilter}
           onChange={(e) => setTruckFilter(e.target.value)}
-          className="rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white"
+          className="rounded-xl border border-stone-300 px-3 py-2 text-sm bg-white shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
         >
           <option value="">All trucks</option>
           {trucks.map((t) => (
@@ -63,11 +63,13 @@ export default function AdminSubmissions() {
       {loading ? (
         <div className="text-slate-500">Loading…</div>
       ) : rows.length === 0 ? (
-        <div className="text-slate-500">No submissions yet.</div>
+        <div className="text-slate-600 bg-white border border-stone-200 rounded-2xl shadow-sm p-6 text-center">
+          No submissions yet.
+        </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-600">
+            <thead className="bg-stone-50 text-left text-slate-600">
               <tr>
                 <th className="px-4 py-3 font-medium">Submitted</th>
                 <th className="px-4 py-3 font-medium">Truck</th>
@@ -77,20 +79,20 @@ export default function AdminSubmissions() {
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-stone-100">
               {rows.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50">
+                <tr key={r.id} className="hover:bg-amber-50/40">
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                     {formatDateTime(r.submitted_at)}
                   </td>
                   <td className="px-4 py-3 text-slate-900">{r.truck_name}</td>
                   <td className="px-4 py-3">
-                    <Link className="text-slate-900 hover:underline font-medium" to={`/admin/submissions/${r.id}`}>
+                    <Link className="text-indigo-700 hover:underline font-medium" to={`/admin/submissions/${r.id}`}>
                       {r.title}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">{r.total_qty}</td>
-                  <td className="px-4 py-3 text-right tabular-nums font-medium">
+                  <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-700">
                     {formatMoney(r.total_cents)}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -98,7 +100,7 @@ export default function AdminSubmissions() {
                       onClick={() =>
                         downloadFile(`/export?id=${r.id}`, `submission-${r.id}.xlsx`)
                       }
-                      className="text-sm rounded-lg bg-slate-900 text-white px-3 py-1.5 hover:bg-slate-800"
+                      className="text-sm rounded-lg bg-emerald-600 text-white px-3 py-1.5 hover:bg-emerald-700 shadow-sm"
                     >
                       Excel
                     </button>

@@ -27,31 +27,38 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-full flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl shadow-sm p-6 touch">
-        <h1 className="text-2xl font-semibold text-slate-900">Inventory Logger</h1>
-        <p className="text-sm text-slate-500 mt-1">
+    <div className="min-h-full flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-amber-50 to-orange-100">
+      <div className="w-full max-w-sm bg-white border border-stone-200 rounded-3xl shadow-xl p-6 touch">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600" />
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Inventory Logger</h1>
+        </div>
+        <p className="text-sm text-slate-500 mt-2">
           {mode === "truck" ? "Truck sign-in" : "Admin sign-in"}
         </p>
 
-        <div className="mt-4 flex rounded-xl bg-slate-100 p-1 text-sm font-medium">
+        <div className="mt-5 flex rounded-xl bg-stone-100 p-1 text-sm font-medium">
           <button
             type="button"
             onClick={() => setMode("truck")}
-            className={`flex-1 py-2 rounded-lg ${mode === "truck" ? "bg-white shadow text-slate-900" : "text-slate-500"}`}
+            className={`flex-1 py-2 rounded-lg transition ${
+              mode === "truck" ? "bg-white shadow text-indigo-700" : "text-slate-500 hover:text-slate-700"
+            }`}
           >
             Truck
           </button>
           <button
             type="button"
             onClick={() => setMode("admin")}
-            className={`flex-1 py-2 rounded-lg ${mode === "admin" ? "bg-white shadow text-slate-900" : "text-slate-500"}`}
+            className={`flex-1 py-2 rounded-lg transition ${
+              mode === "admin" ? "bg-white shadow text-indigo-700" : "text-slate-500 hover:text-slate-700"
+            }`}
           >
             Admin
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="mt-4 space-y-3">
+        <form onSubmit={onSubmit} className="mt-5 space-y-3">
           {mode === "admin" ? (
             <input
               type="email"
@@ -60,7 +67,7 @@ export default function Login() {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-900"
+              className="w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
             />
           ) : (
             <input
@@ -70,7 +77,7 @@ export default function Login() {
               placeholder="Truck username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-900"
+              className="w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
             />
           )}
           <input
@@ -80,13 +87,13 @@ export default function Login() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-900"
+            className="w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
           />
-          {error && <div className="text-sm text-red-600">{error}</div>}
+          {error && <div className="text-sm text-rose-600">{error}</div>}
           <button
             disabled={busy}
             type="submit"
-            className="w-full rounded-xl bg-slate-900 text-white font-medium py-3 hover:bg-slate-800"
+            className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold py-3 hover:from-indigo-700 hover:to-violet-700 shadow-md disabled:opacity-60"
           >
             {busy ? "Signing in…" : "Sign in"}
           </button>

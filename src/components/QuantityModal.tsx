@@ -37,7 +37,7 @@ export default function QuantityModal({ itemName, initial, onCancel, onConfirm }
           <button
             type="button"
             onClick={() => bump(-1)}
-            className="w-12 h-12 rounded-xl bg-slate-100 text-2xl font-bold"
+            className="w-12 h-12 rounded-xl bg-rose-100 text-rose-700 text-2xl font-bold hover:bg-rose-200"
             aria-label="Decrease"
           >
             −
@@ -49,12 +49,12 @@ export default function QuantityModal({ itemName, initial, onCancel, onConfirm }
             min={1}
             value={qty}
             onChange={(e) => setQty(Math.max(1, Math.round(Number(e.target.value) || 1)))}
-            className="w-28 text-center text-3xl font-semibold rounded-xl border border-slate-300 py-2"
+            className="w-28 text-center text-3xl font-semibold rounded-xl border border-stone-300 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
           />
           <button
             type="button"
             onClick={() => bump(1)}
-            className="w-12 h-12 rounded-xl bg-slate-100 text-2xl font-bold"
+            className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 text-2xl font-bold hover:bg-emerald-200"
             aria-label="Increase"
           >
             +
@@ -65,13 +65,13 @@ export default function QuantityModal({ itemName, initial, onCancel, onConfirm }
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-xl bg-slate-100 text-slate-700 font-medium py-3"
+            className="flex-1 rounded-xl bg-stone-100 text-slate-700 font-medium py-3 hover:bg-stone-200"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex-1 rounded-xl bg-slate-900 text-white font-medium py-3"
+            className="flex-1 rounded-xl bg-indigo-600 text-white font-medium py-3 hover:bg-indigo-700 shadow-sm"
           >
             Add
           </button>

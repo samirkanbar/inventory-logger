@@ -22,10 +22,13 @@ CREATE TABLE IF NOT EXISTS items (
   -- price stored in integer cents to avoid float drift
   price_cents   INTEGER NOT NULL CHECK (price_cents >= 0),
   unit          TEXT,
+  category      TEXT,
   active        BOOLEAN NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- For databases created before category existed:
+ALTER TABLE items ADD COLUMN IF NOT EXISTS category TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS items_name_unique ON items (LOWER(name));
 

@@ -32,13 +32,13 @@ export default function AdminSubmissionDetail() {
     api<Detail>(`/submissions?id=${id}`).then(setData).catch((e) => setErr(e.message));
   }, [id]);
 
-  if (err) return <div className="text-red-600">{err}</div>;
+  if (err) return <div className="text-rose-600">{err}</div>;
   if (!data) return <div className="text-slate-500">Loading…</div>;
 
   const s = data.submission;
   return (
     <div>
-      <Link to="/admin/submissions" className="text-sm text-slate-500 hover:text-slate-900">
+      <Link to="/admin/submissions" className="text-sm text-indigo-600 hover:text-indigo-800">
         ← All submissions
       </Link>
       <div className="mt-2 flex items-start justify-between gap-4">
@@ -50,15 +50,15 @@ export default function AdminSubmissionDetail() {
         </div>
         <button
           onClick={() => downloadFile(`/export?id=${s.id}`, `submission-${s.id}.xlsx`)}
-          className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-800"
+          className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-700 shadow-sm"
         >
           Download Excel
         </button>
       </div>
 
-      <div className="mt-6 bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="mt-6 bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-600">
+          <thead className="bg-stone-50 text-left text-slate-600">
             <tr>
               <th className="px-4 py-3 font-medium">Item</th>
               <th className="px-4 py-3 font-medium text-right">Qty</th>
@@ -66,9 +66,9 @@ export default function AdminSubmissionDetail() {
               <th className="px-4 py-3 font-medium text-right">Line total</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-stone-100">
             {data.lines.map((l) => (
-              <tr key={l.id}>
+              <tr key={l.id} className="hover:bg-amber-50/40">
                 <td className="px-4 py-3 text-slate-900">{l.name}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{l.quantity}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{formatMoney(l.unit_price_cents)}</td>
@@ -78,12 +78,12 @@ export default function AdminSubmissionDetail() {
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-slate-50">
+          <tfoot className="bg-emerald-50">
             <tr>
               <td className="px-4 py-3 font-medium text-slate-700" colSpan={3}>
                 Total
               </td>
-              <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-900">
+              <td className="px-4 py-3 text-right tabular-nums font-bold text-emerald-700">
                 {formatMoney(data.total_cents)}
               </td>
             </tr>

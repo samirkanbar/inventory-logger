@@ -2,7 +2,10 @@ import "dotenv/config";
 import { neon } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
 
-const url = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+const url =
+  process.env.NETLIFY_DB_URL ||
+  process.env.NETLIFY_DATABASE_URL ||
+  process.env.DATABASE_URL;
 const email = process.env.ADMIN_EMAIL;
 const password = process.env.ADMIN_PASSWORD;
 

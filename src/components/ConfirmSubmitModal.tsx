@@ -53,34 +53,34 @@ export default function ConfirmSubmitModal({ lines, onCancel, onConfirm }: Props
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Morning delivery — Truck 42"
             autoFocus
-            className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-900"
+            className="mt-1 w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
           />
         </label>
 
-        <ul className="mt-4 divide-y divide-slate-200 border border-slate-200 rounded-xl">
+        <ul className="mt-4 divide-y divide-stone-200 border border-stone-200 rounded-xl bg-stone-50/50">
           {lines.map((l) => (
             <li key={l.item_id} className="flex justify-between px-4 py-3">
               <span className="text-slate-900">{l.name}</span>
-              <span className="font-medium text-slate-700">× {l.quantity}</span>
+              <span className="font-semibold text-indigo-700">× {l.quantity}</span>
             </li>
           ))}
         </ul>
 
-        {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
+        {error && <div className="mt-3 text-sm text-rose-600">{error}</div>}
 
         <div className="mt-6 flex gap-3">
           <button
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="flex-1 rounded-xl bg-slate-100 text-slate-700 font-medium py-3"
+            className="flex-1 rounded-xl bg-stone-100 text-slate-700 font-medium py-3 hover:bg-stone-200 disabled:opacity-60"
           >
             Back
           </button>
           <button
             type="submit"
             disabled={busy}
-            className="flex-1 rounded-xl bg-emerald-600 text-white font-medium py-3 hover:bg-emerald-700"
+            className="flex-1 rounded-xl bg-emerald-600 text-white font-medium py-3 hover:bg-emerald-700 shadow-sm disabled:opacity-60"
           >
             {busy ? "Submitting…" : "Confirm & submit"}
           </button>

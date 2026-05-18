@@ -74,36 +74,36 @@ export default function AdminTrucks() {
   return (
     <div>
       <h1 className="text-2xl font-semibold text-slate-900">Trucks</h1>
-      <p className="text-sm text-slate-500 mt-1">Create one login per truck — share with the crew.</p>
+      <p className="text-sm text-slate-600 mt-1">Create one login per truck — share with the crew.</p>
 
-      <form onSubmit={onCreate} className="mt-4 bg-white rounded-2xl border border-slate-200 p-4 grid sm:grid-cols-3 gap-3">
+      <form onSubmit={onCreate} className="mt-4 bg-white rounded-2xl border border-stone-200 shadow-sm p-4 grid sm:grid-cols-3 gap-3">
         <input
           required
           placeholder="Display name (e.g. Truck 42)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
+          className="rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
         />
         <input
           required
           placeholder="Username (lowercase)"
           value={username}
           onChange={(e) => setUsername(e.target.value.toLowerCase())}
-          className="rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
+          className="rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
         />
         <input
           required
           placeholder="Password (min 6)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
+          className="rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
         />
         <div className="sm:col-span-3 flex items-center justify-between gap-3">
-          {err && <div className="text-sm text-red-600">{err}</div>}
+          {err && <div className="text-sm text-rose-600">{err}</div>}
           <button
             disabled={busy}
             type="submit"
-            className="ml-auto rounded-xl bg-slate-900 text-white px-4 py-2 text-sm font-medium hover:bg-slate-800"
+            className="ml-auto rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700 shadow-sm disabled:opacity-60"
           >
             {busy ? "Creating…" : "Create truck"}
           </button>
@@ -111,7 +111,7 @@ export default function AdminTrucks() {
       </form>
 
       {created && (
-        <div className="mt-3 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-900">
+        <div className="mt-3 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-900 shadow-sm">
           Created. Share these credentials with the truck:
           <div className="mt-1 font-mono">
             user: <b>{created.username}</b> · pass: <b>{created.password}</b>
@@ -129,11 +129,11 @@ export default function AdminTrucks() {
       {loading ? (
         <div className="text-slate-500 mt-3">Loading…</div>
       ) : trucks.length === 0 ? (
-        <div className="text-slate-500 mt-3">No trucks yet.</div>
+        <div className="text-slate-500 mt-3 bg-white rounded-2xl border border-stone-200 p-6 text-center shadow-sm">No trucks yet.</div>
       ) : (
-        <div className="mt-3 bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="mt-3 bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-600">
+            <thead className="bg-stone-50 text-left text-slate-600">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Username</th>
@@ -142,26 +142,38 @@ export default function AdminTrucks() {
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-stone-100">
               {trucks.map((t) => (
-                <tr key={t.id} className={t.active ? "" : "opacity-50"}>
-                  <td className="px-4 py-3 text-slate-900">{t.name}</td>
-                  <td className="px-4 py-3 font-mono text-slate-700">{t.username}</td>
+                <tr key={t.id} className={`${t.active ? "" : "opacity-50"} hover:bg-amber-50/40`}>
+                  <td className="px-4 py-3 text-slate-900 font-medium">{t.name}</td>
+                  <td className="px-4 py-3 font-mono text-indigo-700">{t.username}</td>
                   <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                     {formatDateTime(t.created_at)}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{t.active ? "Active" : "Inactive"}</td>
+                  <td className="px-4 py-3">
+                    {t.active ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-stone-400" />
+                        Inactive
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right flex justify-end gap-2">
                     <button
                       onClick={() => resetPassword(t)}
                       disabled={resetting === t.id}
-                      className="text-xs rounded-lg bg-slate-100 text-slate-700 px-3 py-1.5 hover:bg-slate-200"
+                      className="text-xs rounded-lg bg-stone-100 text-slate-700 px-3 py-1.5 hover:bg-stone-200"
                     >
                       Reset password
                     </button>
                     <button
                       onClick={() => toggleActive(t)}
-                      className="text-xs rounded-lg bg-slate-100 text-slate-700 px-3 py-1.5 hover:bg-slate-200"
+                      className="text-xs rounded-lg bg-stone-100 text-slate-700 px-3 py-1.5 hover:bg-stone-200"
                     >
                       {t.active ? "Deactivate" : "Activate"}
                     </button>
