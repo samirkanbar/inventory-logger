@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Bigger tap targets on truck side */
+.touch button, .touch input, .touch select {
+  min-height: 44px;
+}
