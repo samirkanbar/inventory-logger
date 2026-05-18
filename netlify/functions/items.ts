@@ -101,27 +101,37 @@ export default async (req: Request) => {
       cleaned.push({ name, price_cents: price, unit, category });
     }
 
-    let inserted = 0;
-    let updated = 0;
-    const importedItemIds: number[] = [];
-    for (const row of cleaned) {
-      const result = (await sql`
-        INSERT INTO items (name, price_cents, unit, category, active, updated_at)
-        VALUES (${row.name}, ${row.price_cents}, ${row.unit}, ${row.category}, TRUE, NOW())
-        ON CONFLICT (LOWER(name)) DO UPDATE
-          SET price_cents = EXCLUDED.price_cents,
-              unit        = EXCLUDED.unit,
-              category    = EXCLUDED.category,
-              active      = TRUE,
-              updated_at  = NOW()
-        RETURNING id, (xmax = 0) AS inserted
-      `) as Array<{ id: number; inserted: boolean }>;
-      const r0 = result[0];
-      if (!r0) continue;
-      if (r0.inserted) inserted++;
-      else updated++;
-      importedItemIds.push(Number(r0.id));
-    }
+    // Batch all item upserts into a single statement. The earlier per-row loop
+    // hit Netlify's 10s function timeout on moderate uploads (each Neon HTTP
+    // round-trip is ~50-100ms, so 50 items × 3 trucks = 200 trips = timeout).
+    const names      = cleaned.map((r) => r.name);
+    const prices     = cleaned.map((r) => r.price_cents);
+    const units      = cleaned.map((r) => r.unit ?? null);
+    const categories = cleaned.map((r) => r.category ?? null);
+
+    const upserted = (await sql`
+      WITH input AS (
+        SELECT * FROM unnest(
+          ${names}::text[],
+          ${prices}::int[],
+          ${units}::text[],
+          ${categories}::text[]
+        ) AS u(name, price_cents, unit, category)
+      )
+      INSERT INTO items (name, price_cents, unit, category, active, updated_at)
+      SELECT name, price_cents, unit, category, TRUE, NOW() FROM input
+      ON CONFLICT (LOWER(name)) DO UPDATE SET
+        price_cents = EXCLUDED.price_cents,
+        unit        = EXCLUDED.unit,
+        category    = EXCLUDED.category,
+        active      = TRUE,
+        updated_at  = NOW()
+      RETURNING id, (xmax = 0) AS inserted
+    `) as Array<{ id: number; inserted: boolean }>;
+
+    const importedItemIds = upserted.map((r) => Number(r.id));
+    const inserted = upserted.filter((r) => r.inserted).length;
+    const updated  = upserted.length - inserted;
 
     // Replace mode: for the selected trucks, drop their existing assignments
     // to any items NOT in this import. (Items themselves stay in DB.)
@@ -133,18 +143,18 @@ export default async (req: Request) => {
       `;
     }
 
-    // Assign imported items to the selected trucks. ON CONFLICT keeps existing.
+    // Assign imported items to the selected trucks in a single statement.
     let assignments = 0;
-    for (const itemId of importedItemIds) {
-      for (const truckId of truckIds) {
-        const r = (await sql`
-          INSERT INTO truck_items (truck_id, item_id)
-          VALUES (${truckId}, ${itemId})
-          ON CONFLICT DO NOTHING
-          RETURNING 1
-        `) as Array<unknown>;
-        if (r.length > 0) assignments++;
-      }
+    if (importedItemIds.length > 0 && truckIds.length > 0) {
+      const r = (await sql`
+        INSERT INTO truck_items (truck_id, item_id)
+        SELECT t.truck_id, i.item_id
+        FROM unnest(${truckIds}::bigint[]) AS t(truck_id)
+        CROSS JOIN unnest(${importedItemIds}::bigint[]) AS i(item_id)
+        ON CONFLICT DO NOTHING
+        RETURNING 1
+      `) as Array<unknown>;
+      assignments = r.length;
     }
 
     return json({
