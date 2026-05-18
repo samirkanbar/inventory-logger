@@ -103,7 +103,7 @@ export default function AdminTrucks() {
           <button
             disabled={busy}
             type="submit"
-            className="ml-auto rounded-xl bg-stone-900 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-stone-800 shadow-sm disabled:opacity-60"
+            className="ml-auto rounded-xl bg-amber-700 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-amber-800 shadow-sm disabled:opacity-60"
           >
             {busy ? "Creating…" : "Create truck"}
           </button>

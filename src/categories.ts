@@ -1,6 +1,5 @@
-// Deterministic color palette per category. Restricted to warm tones
-// (browns, amber, orange, rose, red, yellow, lime, emerald) to match
-// the overall coffee/brown theme.
+// Deterministic warm-only color palette per category.
+// No reds, no greens — strictly browns, ambers, oranges, yellows, rose.
 
 export interface CategoryColor {
   bg: string;
@@ -14,12 +13,9 @@ export interface CategoryColor {
 const PALETTE: CategoryColor[] = [
   { bg: "bg-amber-50",   border: "border-amber-300",   headerBg: "bg-amber-100",   headerText: "text-amber-900",   dot: "bg-amber-600",   ring: "ring-amber-300" },
   { bg: "bg-orange-50",  border: "border-orange-300",  headerBg: "bg-orange-100",  headerText: "text-orange-900",  dot: "bg-orange-600",  ring: "ring-orange-300" },
-  { bg: "bg-yellow-50",  border: "border-yellow-300",  headerBg: "bg-yellow-100",  headerText: "text-yellow-900",  dot: "bg-yellow-600",  ring: "ring-yellow-300" },
-  { bg: "bg-rose-50",    border: "border-rose-300",    headerBg: "bg-rose-100",    headerText: "text-rose-900",    dot: "bg-rose-600",    ring: "ring-rose-300" },
-  { bg: "bg-red-50",     border: "border-red-300",     headerBg: "bg-red-100",     headerText: "text-red-900",     dot: "bg-red-600",     ring: "ring-red-300" },
+  { bg: "bg-yellow-50",  border: "border-yellow-300",  headerBg: "bg-yellow-100",  headerText: "text-yellow-900",  dot: "bg-yellow-700",  ring: "ring-yellow-300" },
+  { bg: "bg-rose-50",    border: "border-rose-300",    headerBg: "bg-rose-100",    headerText: "text-rose-900",    dot: "bg-rose-700",    ring: "ring-rose-300" },
   { bg: "bg-stone-100",  border: "border-stone-400",   headerBg: "bg-stone-200",   headerText: "text-stone-900",   dot: "bg-stone-700",   ring: "ring-stone-400" },
-  { bg: "bg-lime-50",    border: "border-lime-300",    headerBg: "bg-lime-100",    headerText: "text-lime-900",    dot: "bg-lime-600",    ring: "ring-lime-300" },
-  { bg: "bg-emerald-50", border: "border-emerald-300", headerBg: "bg-emerald-100", headerText: "text-emerald-900", dot: "bg-emerald-600", ring: "ring-emerald-300" },
 ];
 
 const NEUTRAL: CategoryColor = {

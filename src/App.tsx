@@ -55,7 +55,7 @@ export function LogoutButton() {
   const nav = useNavigate();
   return (
     <button
-      className="text-sm font-medium text-stone-300 hover:text-amber-300 rounded-lg px-3 py-1.5 hover:bg-stone-800 transition"
+      className="text-sm font-medium text-stone-700 hover:text-amber-900 rounded-lg px-3 py-1.5 hover:bg-amber-100 transition"
       onClick={() => {
         logout();
         nav("/login", { replace: true });

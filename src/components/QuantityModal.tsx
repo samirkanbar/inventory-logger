@@ -71,7 +71,7 @@ export default function QuantityModal({ itemName, initial, onCancel, onConfirm }
           </button>
           <button
             type="submit"
-            className="flex-1 rounded-xl bg-stone-900 text-amber-50 font-semibold py-3 hover:bg-stone-800 shadow-sm"
+            className="flex-1 rounded-xl bg-amber-700 text-amber-50 font-semibold py-3 hover:bg-amber-800 shadow-sm"
           >
             Add
           </button>

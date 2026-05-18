@@ -224,7 +224,7 @@ export default function AdminItems() {
             <button
               onClick={doImport}
               disabled={importing}
-              className="mt-3 rounded-xl bg-stone-900 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-stone-800 shadow-sm"
+              className="mt-3 rounded-xl bg-amber-700 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-amber-800 shadow-sm"
             >
               {importing ? "Importing…" : `Import ${preview.length} item${preview.length === 1 ? "" : "s"}`}
             </button>

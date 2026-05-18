@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { LogoutButton } from "../App";
-import QuantityModal from "../components/QuantityModal";
 import ConfirmSubmitModal, { CartLine } from "../components/ConfirmSubmitModal";
 import { categoryLabel, groupByCategory } from "../categories";
 
@@ -14,13 +13,63 @@ interface Item {
   price_cents: number;
 }
 
+function QtyControl({
+  qty,
+  onChange,
+}: {
+  qty: number;
+  onChange: (q: number) => void;
+}) {
+  if (qty === 0) {
+    return (
+      <button
+        onClick={() => onChange(1)}
+        className="text-sm font-semibold rounded-lg bg-amber-700 text-amber-50 px-4 py-2 hover:bg-amber-800 shadow-sm"
+      >
+        + Add
+      </button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => onChange(qty - 1)}
+        className="w-9 h-9 rounded-lg bg-amber-100 text-amber-900 text-xl font-bold leading-none hover:bg-amber-200 border border-amber-300"
+        aria-label="Decrease"
+      >
+        −
+      </button>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        value={qty}
+        onClick={(e) => (e.target as HTMLInputElement).select()}
+        onChange={(e) => {
+          const n = Math.max(0, Math.round(Number(e.target.value) || 0));
+          onChange(n);
+        }}
+        className="w-14 h-9 text-center font-bold text-stone-900 rounded-lg border border-amber-300 bg-white focus:border-amber-700 focus:ring-2 focus:ring-amber-200 outline-none tabular-nums"
+      />
+      <button
+        type="button"
+        onClick={() => onChange(qty + 1)}
+        className="w-9 h-9 rounded-lg bg-amber-700 text-amber-50 text-xl font-bold leading-none hover:bg-amber-800 shadow-sm"
+        aria-label="Increase"
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
 export default function TruckHome() {
   const { me } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Map<number, CartLine>>(new Map());
-  const [pendingItem, setPendingItem] = useState<Item | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -63,10 +112,11 @@ export default function TruckHome() {
   const cartLines = useMemo(() => Array.from(cart.values()), [cart]);
   const totalQty = cartLines.reduce((s, l) => s + l.quantity, 0);
 
-  function addOrUpdate(itemId: number, name: string, qty: number) {
+  function setItemQty(item: Item, qty: number) {
     setCart((prev) => {
       const next = new Map(prev);
-      next.set(itemId, { item_id: itemId, name, quantity: qty });
+      if (qty <= 0) next.delete(item.id);
+      else next.set(item.id, { item_id: item.id, name: item.name, quantity: qty });
       return next;
     });
   }
@@ -94,13 +144,16 @@ export default function TruckHome() {
   }
 
   return (
-    <div className="min-h-full pb-32 touch bg-gradient-to-b from-amber-50 via-stone-100 to-amber-100/50">
-      {/* Top bar */}
-      <header className="sticky top-0 z-10 bg-stone-950/95 backdrop-blur border-b border-stone-800 shadow-md">
+    <div className="min-h-full pb-32 touch bg-gradient-to-b from-amber-50 via-stone-50 to-amber-100/60">
+      {/* Top bar — light cream with brown accents */}
+      <header className="sticky top-0 z-10 bg-amber-50/95 backdrop-blur border-b border-amber-300 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-wider text-amber-400 font-semibold">Truck</div>
-            <div className="font-semibold text-stone-100">{me?.label}</div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-800" />
+            <div>
+              <div className="text-xs uppercase tracking-wider text-amber-800 font-semibold">Truck</div>
+              <div className="font-semibold text-stone-900">{me?.label}</div>
+            </div>
           </div>
           <LogoutButton />
         </div>
@@ -110,7 +163,7 @@ export default function TruckHome() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search items…"
-            className="w-full rounded-xl border border-stone-700 bg-stone-900 text-stone-100 placeholder:text-stone-500 px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-900/50"
+            className="w-full rounded-xl border border-amber-300 bg-white text-stone-900 placeholder:text-stone-400 px-4 py-3 outline-none focus:border-amber-700 focus:ring-2 focus:ring-amber-200"
           />
         </div>
       </header>
@@ -127,7 +180,7 @@ export default function TruckHome() {
         {loading ? (
           <div className="text-stone-600">Loading items…</div>
         ) : items.length === 0 ? (
-          <div className="text-stone-700 bg-white rounded-2xl border border-stone-300 p-6 text-center shadow-sm">
+          <div className="text-stone-700 bg-white rounded-2xl border border-amber-200 p-6 text-center shadow-sm">
             No items yet. Your admin needs to upload an inventory list first.
           </div>
         ) : (
@@ -140,13 +193,13 @@ export default function TruckHome() {
                 <div className="flex gap-2 text-xs">
                   <button
                     onClick={expandAll}
-                    className="rounded-lg bg-white border border-stone-300 px-2.5 py-1 text-stone-800 hover:bg-stone-50"
+                    className="rounded-lg bg-white border border-amber-300 px-2.5 py-1 text-stone-800 hover:bg-amber-50"
                   >
                     Expand all
                   </button>
                   <button
                     onClick={collapseAll}
-                    className="rounded-lg bg-white border border-stone-300 px-2.5 py-1 text-stone-800 hover:bg-stone-50"
+                    className="rounded-lg bg-white border border-amber-300 px-2.5 py-1 text-stone-800 hover:bg-amber-50"
                   >
                     Collapse all
                   </button>
@@ -177,7 +230,7 @@ export default function TruckHome() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {cartN > 0 && (
-                          <span className="inline-flex items-center text-xs font-semibold bg-stone-900 text-amber-100 px-2 py-0.5 rounded-full">
+                          <span className="inline-flex items-center text-xs font-semibold bg-amber-700 text-amber-50 px-2 py-0.5 rounded-full">
                             {cartN} in cart
                           </span>
                         )}
@@ -191,14 +244,15 @@ export default function TruckHome() {
                     </button>
 
                     {open && (
-                      <ul className={`divide-y divide-stone-200 ${color.bg}`}>
+                      <ul className={`divide-y divide-amber-100 ${color.bg}`}>
                         {groupItems.map((it) => {
                           const inCart = cart.get(it.id);
+                          const qty = inCart?.quantity ?? 0;
                           return (
                             <li key={it.id}>
                               <div
                                 className={`flex items-center justify-between gap-3 px-4 py-3 transition ${
-                                  inCart ? "bg-amber-50/80" : "bg-white"
+                                  qty > 0 ? "bg-amber-50" : "bg-white"
                                 }`}
                               >
                                 <div className="min-w-0 flex-1">
@@ -207,27 +261,8 @@ export default function TruckHome() {
                                     <div className="text-xs text-stone-500 mt-0.5">per {it.unit}</div>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  {inCart ? (
-                                    <>
-                                      <span className="text-sm font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg tabular-nums">
-                                        × {inCart.quantity}
-                                      </span>
-                                      <button
-                                        onClick={() => setPendingItem(it)}
-                                        className="text-xs font-semibold rounded-lg bg-stone-900 text-amber-100 px-3 py-2 hover:bg-stone-800 shadow-sm"
-                                      >
-                                        Edit
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <button
-                                      onClick={() => setPendingItem(it)}
-                                      className="text-sm font-semibold rounded-lg bg-stone-900 text-amber-100 px-4 py-2 hover:bg-stone-800 shadow-sm"
-                                    >
-                                      + Add
-                                    </button>
-                                  )}
+                                <div className="shrink-0">
+                                  <QtyControl qty={qty} onChange={(q) => setItemQty(it, q)} />
                                 </div>
                               </div>
                             </li>
@@ -240,7 +275,7 @@ export default function TruckHome() {
               })}
 
               {grouped.length === 0 && (
-                <div className="text-stone-600 text-sm bg-white border border-stone-300 rounded-2xl p-6 text-center shadow-sm">
+                <div className="text-stone-600 text-sm bg-white border border-amber-200 rounded-2xl p-6 text-center shadow-sm">
                   No matches for "{query}".
                 </div>
               )}
@@ -249,41 +284,29 @@ export default function TruckHome() {
         )}
       </main>
 
-      {/* Sticky cart footer */}
+      {/* Sticky cart footer — cream, brown accents, dark accent only on button */}
       {cartLines.length > 0 && (
-        <div className="fixed bottom-0 inset-x-0 bg-stone-950/95 backdrop-blur border-t border-stone-800 shadow-[0_-4px_16px_rgba(0,0,0,0.2)]">
+        <div className="fixed bottom-0 inset-x-0 bg-amber-50/95 backdrop-blur border-t-2 border-amber-300 shadow-[0_-4px_16px_rgba(120,53,15,0.12)]">
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
             <div className="text-sm">
-              <div className="font-semibold text-stone-100">
+              <div className="font-semibold text-stone-900">
                 {cartLines.length} item{cartLines.length === 1 ? "" : "s"} · {totalQty} qty
               </div>
               <button
                 onClick={() => setCart(new Map())}
-                className="text-xs text-amber-400 hover:text-amber-300 underline"
+                className="text-xs text-stone-600 hover:text-amber-800 underline"
               >
                 Clear
               </button>
             </div>
             <button
               onClick={() => setConfirming(true)}
-              className="rounded-xl bg-amber-700 text-white font-semibold px-5 py-3 shadow-md hover:bg-amber-800"
+              className="rounded-xl bg-stone-900 text-amber-50 font-semibold px-5 py-3 shadow-md hover:bg-stone-800"
             >
               Review & submit
             </button>
           </div>
         </div>
-      )}
-
-      {pendingItem && (
-        <QuantityModal
-          itemName={pendingItem.name}
-          initial={cart.get(pendingItem.id)?.quantity}
-          onCancel={() => setPendingItem(null)}
-          onConfirm={(qty) => {
-            addOrUpdate(pendingItem.id, pendingItem.name, qty);
-            setPendingItem(null);
-          }}
-        />
       )}
 
       {confirming && (

@@ -100,7 +100,7 @@ export default function AdminSubmissions() {
                       onClick={() =>
                         downloadFile(`/export?id=${r.id}`, `submission-${r.id}.xlsx`)
                       }
-                      className="text-sm rounded-lg bg-stone-900 text-amber-50 px-3 py-1.5 hover:bg-stone-800 shadow-sm"
+                      className="text-sm rounded-lg bg-amber-700 text-amber-50 px-3 py-1.5 hover:bg-amber-800 shadow-sm"
                     >
                       Excel
                     </button>
