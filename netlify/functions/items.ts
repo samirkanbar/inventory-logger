@@ -181,9 +181,26 @@ export default async (req: Request) => {
     if (typeof body?.active === "boolean") {
       await sql`UPDATE items SET active = ${body.active}, updated_at = NOW() WHERE id = ${id}`;
     }
+    if (typeof body?.name === "string") {
+      const n = String(body.name).trim();
+      if (!n) return error("Name cannot be empty", 400);
+      try {
+        await sql`UPDATE items SET name = ${n}, updated_at = NOW() WHERE id = ${id}`;
+      } catch (e: any) {
+        if (String(e?.message || "").toLowerCase().includes("duplicate")) {
+          return error(`Another item is already named "${n}"`, 409);
+        }
+        throw e;
+      }
+    }
     if (Number.isFinite(Number(body?.price_cents))) {
       const p = Math.round(Number(body.price_cents));
+      if (p < 0) return error("Price cannot be negative", 400);
       await sql`UPDATE items SET price_cents = ${p}, updated_at = NOW() WHERE id = ${id}`;
+    }
+    if (typeof body?.unit === "string" || body?.unit === null) {
+      const u = body.unit === null ? null : String(body.unit).trim() || null;
+      await sql`UPDATE items SET unit = ${u}, updated_at = NOW() WHERE id = ${id}`;
     }
     if (typeof body?.category === "string" || body?.category === null) {
       const cat = body.category === null ? null : String(body.category).trim() || null;

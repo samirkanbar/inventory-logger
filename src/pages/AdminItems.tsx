@@ -193,6 +193,11 @@ export default function AdminItems() {
     await load();
   }
 
+  async function patchItem(item: Item, patch: Record<string, unknown>) {
+    await api("/items", { method: "PATCH", json: { id: item.id, ...patch } });
+    await load();
+  }
+
   function truckNameFor(id: number) {
     return trucks.find((t) => t.id === id)?.name || `#${id}`;
   }
@@ -363,7 +368,14 @@ export default function AdminItems() {
                 const c = colorForCategory(it.category);
                 return (
                   <tr key={it.id} className={it.active ? "" : "opacity-50"}>
-                    <td className="px-4 py-3 text-stone-900">{it.name}</td>
+                    <td className="px-4 py-3 text-stone-900 font-medium">
+                      <EditableText
+                        value={it.name}
+                        onSave={(v) => patchItem(it, { name: v })}
+                        validate={(v) => (v.trim() ? null : "Name cannot be empty")}
+                        ariaLabel={`Edit name for ${it.name}`}
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => editCategory(it)}
@@ -374,8 +386,21 @@ export default function AdminItems() {
                         {categoryLabel(it.category)}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{it.unit || "—"}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatMoney(it.price_cents)}</td>
+                    <td className="px-4 py-3 text-slate-500">
+                      <EditableText
+                        value={it.unit || ""}
+                        onSave={(v) => patchItem(it, { unit: v.trim() || null })}
+                        placeholder="—"
+                        ariaLabel={`Edit unit for ${it.name}`}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      <EditableMoney
+                        cents={it.price_cents}
+                        onSave={(c) => patchItem(it, { price_cents: c })}
+                        ariaLabel={`Edit price for ${it.name}`}
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => setEditingAssignFor(it)}
@@ -415,6 +440,185 @@ export default function AdminItems() {
           onSave={(ids) => saveAssignments(editingAssignFor, ids)}
         />
       )}
+    </div>
+  );
+}
+
+function EditableText({
+  value,
+  onSave,
+  validate,
+  placeholder,
+  ariaLabel,
+}: {
+  value: string;
+  onSave: (v: string) => Promise<void> | void;
+  validate?: (v: string) => string | null;
+  placeholder?: string;
+  ariaLabel?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
+  async function commit() {
+    if (draft === value) {
+      setEditing(false);
+      setErr(null);
+      return;
+    }
+    const v = validate ? validate(draft) : null;
+    if (v) {
+      setErr(v);
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    try {
+      await onSave(draft);
+      setEditing(false);
+    } catch (e: any) {
+      setErr(e?.message || "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function cancel() {
+    setDraft(value);
+    setErr(null);
+    setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        aria-label={ariaLabel}
+        className="text-left w-full rounded px-1 -mx-1 py-0.5 hover:bg-amber-50 focus:bg-amber-50 outline-none focus:ring-2 focus:ring-amber-200"
+      >
+        {value || <span className="text-stone-400">{placeholder || "—"}</span>}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <input
+        autoFocus
+        value={draft}
+        disabled={busy}
+        aria-label={ariaLabel}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            cancel();
+          }
+        }}
+        className="w-full rounded border border-amber-400 px-2 py-1 outline-none focus:ring-2 focus:ring-amber-200 disabled:opacity-60"
+      />
+      {err && <div className="text-xs text-rose-600">{err}</div>}
+    </div>
+  );
+}
+
+function EditableMoney({
+  cents,
+  onSave,
+  ariaLabel,
+}: {
+  cents: number;
+  onSave: (c: number) => Promise<void> | void;
+  ariaLabel?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(() => (cents / 100).toFixed(2));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft((cents / 100).toFixed(2));
+  }, [cents, editing]);
+
+  async function commit() {
+    const parsed = parseMoneyToCents(draft);
+    if (parsed == null || parsed < 0) {
+      setErr("Invalid price");
+      return;
+    }
+    if (parsed === cents) {
+      setEditing(false);
+      setErr(null);
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    try {
+      await onSave(parsed);
+      setEditing(false);
+    } catch (e: any) {
+      setErr(e?.message || "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function cancel() {
+    setDraft((cents / 100).toFixed(2));
+    setErr(null);
+    setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        aria-label={ariaLabel}
+        className="rounded px-1 -mx-1 py-0.5 hover:bg-amber-50 focus:bg-amber-50 outline-none focus:ring-2 focus:ring-amber-200 tabular-nums"
+      >
+        {formatMoney(cents)}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex items-center gap-1">
+        <span className="text-stone-500">$</span>
+        <input
+          autoFocus
+          inputMode="decimal"
+          value={draft}
+          disabled={busy}
+          aria-label={ariaLabel}
+          onChange={(e) => setDraft(e.target.value)}
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              cancel();
+            }
+          }}
+          className="w-24 text-right rounded border border-amber-400 px-2 py-1 outline-none focus:ring-2 focus:ring-amber-200 tabular-nums disabled:opacity-60"
+        />
+      </div>
+      {err && <div className="text-xs text-rose-600">{err}</div>}
     </div>
   );
 }
