@@ -34,7 +34,7 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Inventory Logger</h1>
         </div>
         <p className="text-sm text-stone-600 mt-2">
-          {mode === "truck" ? "Truck sign-in" : "Admin sign-in"}
+          {mode === "truck" ? "Location sign-in" : "Admin sign-in"}
         </p>
 
         <div className="mt-5 flex rounded-xl bg-stone-200 p-1 text-sm font-medium">
@@ -45,7 +45,7 @@ export default function Login() {
               mode === "truck" ? "bg-white shadow text-stone-900" : "text-stone-600 hover:text-stone-900"
             }`}
           >
-            Truck
+            Location
           </button>
           <button
             type="button"
@@ -74,7 +74,7 @@ export default function Login() {
               type="text"
               required
               autoComplete="username"
-              placeholder="Truck username"
+              placeholder="Location username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full rounded-xl border border-stone-300 px-4 py-3 outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"

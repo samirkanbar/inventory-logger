@@ -21,7 +21,8 @@ export default function AdminLayout() {
           {[
             { to: "submissions", label: "Submissions" },
             { to: "items", label: "Items" },
-            { to: "trucks", label: "Trucks" },
+            { to: "trucks", label: "Locations" },
+            { to: "admins", label: "Admins" },
           ].map((t) => (
             <NavLink
               key={t.to}

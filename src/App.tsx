@@ -6,6 +6,7 @@ import AdminLayout from "./pages/AdminLayout";
 import AdminSubmissions from "./pages/AdminSubmissions";
 import AdminItems from "./pages/AdminItems";
 import AdminTrucks from "./pages/AdminTrucks";
+import AdminAdmins from "./pages/AdminAdmins";
 import AdminSubmissionDetail from "./pages/AdminSubmissionDetail";
 
 export default function App() {
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="submissions/:id" element={<AdminSubmissionDetail />} />
         <Route path="items" element={<AdminItems />} />
         <Route path="trucks" element={<AdminTrucks />} />
+        <Route path="admins" element={<AdminAdmins />} />
       </Route>
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>
