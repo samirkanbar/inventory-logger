@@ -13,6 +13,14 @@ interface Item {
   price_cents: number;
 }
 
+const CATEGORY_HEADER_PALETTE = [
+  "bg-amber-200",
+  "bg-orange-300",
+  "bg-amber-300",
+  "bg-orange-200",
+  "bg-amber-400",
+];
+
 function QtyControl({
   qty,
   onChange,
@@ -208,9 +216,10 @@ export default function TruckHome() {
             )}
 
             <div className="space-y-3">
-              {grouped.map(({ category, items: groupItems }) => {
+              {grouped.map(({ category, items: groupItems }, idx) => {
                 const open = isOpen(category);
                 const cartN = cartCountFor(category);
+                const headerBg = CATEGORY_HEADER_PALETTE[idx % CATEGORY_HEADER_PALETTE.length];
                 return (
                   <section
                     key={category}
@@ -219,7 +228,7 @@ export default function TruckHome() {
                     <button
                       onClick={() => toggle(category)}
                       disabled={q.length > 0}
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-stone-100 text-stone-900 text-left"
+                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 ${headerBg} text-stone-900 text-left`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span className="font-bold tracking-tight uppercase text-sm truncate">{category}</span>
@@ -255,7 +264,7 @@ export default function TruckHome() {
                                 }`}
                               >
                                 <div className="min-w-0 flex-1">
-                                  <div className="font-medium text-stone-900 truncate">{it.name}</div>
+                                  <div className="font-bold text-stone-900 truncate">{it.name}</div>
                                   {it.unit && (
                                     <div className="text-xs text-stone-500 mt-0.5">per {it.unit}</div>
                                   )}
