@@ -79,7 +79,7 @@ export default function TruckHome() {
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Map<number, CartLine>>(new Map());
   const [confirming, setConfirming] = useState(false);
-  const [flash, setFlash] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -137,8 +137,7 @@ export default function TruckHome() {
     await api("/submissions", { method: "POST", json: payload });
     setCart(new Map());
     setConfirming(false);
-    setFlash("Submitted! Your boss will see it instantly.");
-    setTimeout(() => setFlash(null), 3500);
+    setSubmitted(true);
   }
 
   function cartCountFor(category: string): number {
@@ -176,13 +175,6 @@ export default function TruckHome() {
         </div>
       </header>
 
-      {flash && (
-        <div className="max-w-2xl mx-auto mt-3 px-4">
-          <div className="rounded-xl bg-amber-100 border border-amber-300 text-amber-900 px-4 py-3 text-sm font-medium shadow-sm">
-            {flash}
-          </div>
-        </div>
-      )}
 
       <main className="max-w-2xl mx-auto p-4">
         {loading ? (
@@ -323,6 +315,30 @@ export default function TruckHome() {
           onCancel={() => setConfirming(false)}
           onConfirm={submit}
         />
+      )}
+
+      {submitted && (
+        <div className="fixed inset-0 bg-black/40 z-40 flex items-end sm:items-center justify-center p-4 touch">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
+            <button
+              type="button"
+              onClick={() => setSubmitted(false)}
+              aria-label="Close"
+              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-stone-100 text-stone-700 text-xl font-bold leading-none hover:bg-stone-200"
+            >
+              ×
+            </button>
+            <div className="text-sm uppercase tracking-wider text-amber-800 font-semibold">
+              Submitted
+            </div>
+            <h2 className="text-xl font-semibold text-stone-900 mt-1">
+              Order sent successfully
+            </h2>
+            <p className="mt-2 text-stone-700">
+              Your boss will see it instantly. Tap × to dismiss.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
