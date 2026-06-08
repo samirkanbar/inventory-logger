@@ -64,3 +64,35 @@ CREATE TABLE IF NOT EXISTS submission_items (
 );
 
 CREATE INDEX IF NOT EXISTS submission_items_submission_idx ON submission_items (submission_id);
+
+-- Item requests: a truck flags something it's missing. The request is EITHER a
+-- pointer to an existing catalog item (item_id) OR a free-text custom name
+-- (e.g. "cupcakes") for something not in the catalog yet.
+CREATE TABLE IF NOT EXISTS requests (
+  id          BIGSERIAL PRIMARY KEY,
+  truck_id    BIGINT NOT NULL REFERENCES trucks(id) ON DELETE CASCADE,
+  -- nullable: a custom (non-catalog) request has no item_id.
+  item_id     BIGINT REFERENCES items(id) ON DELETE SET NULL,
+  custom_name TEXT,
+  quantity    INTEGER CHECK (quantity IS NULL OR quantity > 0),
+  note        TEXT,
+  -- 'open' for now; a future "resolve" action will flip this to 'resolved'.
+  status      TEXT NOT NULL DEFAULT 'open',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- every request must name something: a catalog item or a custom string.
+  CONSTRAINT requests_item_or_custom CHECK (item_id IS NOT NULL OR custom_name IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS requests_created_idx ON requests (created_at DESC);
+CREATE INDEX IF NOT EXISTS requests_truck_idx ON requests (truck_id, created_at DESC);
+
+-- Expo push notification tokens. user_id is polymorphic: it points at admins.id
+-- or trucks.id depending on `role`, so it can't be a single FK. One row per device.
+CREATE TABLE IF NOT EXISTS push_tokens (
+  id          BIGSERIAL PRIMARY KEY,
+  role        TEXT NOT NULL,
+  user_id     BIGINT NOT NULL,
+  expo_token  TEXT NOT NULL UNIQUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS push_tokens_role_idx ON push_tokens (role);

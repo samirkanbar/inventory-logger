@@ -80,6 +80,30 @@ CREATE TABLE IF NOT EXISTS submission_items (
 );
 
 CREATE INDEX IF NOT EXISTS submission_items_submission_idx ON submission_items (submission_id);
+
+CREATE TABLE IF NOT EXISTS requests (
+  id          BIGSERIAL PRIMARY KEY,
+  truck_id    BIGINT NOT NULL REFERENCES trucks(id) ON DELETE CASCADE,
+  item_id     BIGINT REFERENCES items(id) ON DELETE SET NULL,
+  custom_name TEXT,
+  quantity    INTEGER CHECK (quantity IS NULL OR quantity > 0),
+  note        TEXT,
+  status      TEXT NOT NULL DEFAULT 'open',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT requests_item_or_custom CHECK (item_id IS NOT NULL OR custom_name IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS requests_created_idx ON requests (created_at DESC);
+CREATE INDEX IF NOT EXISTS requests_truck_idx ON requests (truck_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS push_tokens (
+  id          BIGSERIAL PRIMARY KEY,
+  role        TEXT NOT NULL,
+  user_id     BIGINT NOT NULL,
+  expo_token  TEXT NOT NULL UNIQUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS push_tokens_role_idx ON push_tokens (role);
 `;
 
 export default async (req: Request) => {
