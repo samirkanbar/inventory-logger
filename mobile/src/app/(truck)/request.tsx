@@ -17,58 +17,103 @@ interface CatalogItem {
   category: string | null;
 }
 
+interface RequestLine {
+  key: string;
+  item_id: number | null; // null = custom (new) item
+  name: string;
+  unit: string | null;
+  quantity: number;
+}
+
 export default function Request() {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<CatalogItem[]>([]);
   const [searching, setSearching] = useState(false);
-  const [selected, setSelected] = useState<CatalogItem | null>(null);
-  const [qty, setQty] = useState("");
-  const [note, setNote] = useState("");
+  const [lines, setLines] = useState<RequestLine[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Search the full catalog as the truck types.
+  // Live catalog suggestions as the truck types.
   useEffect(() => {
-    if (selected) return; // not searching while an item is chosen
     const term = search.trim();
+    if (!term) {
+      setResults([]);
+      return;
+    }
     let cancelled = false;
     setSearching(true);
     const t = setTimeout(() => {
       api<{ items: CatalogItem[] }>(`/catalog?q=${encodeURIComponent(term)}`)
-        .then((r) => {
-          if (!cancelled) setResults(r.items);
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
+        .then((r) => !cancelled && setResults(r.items))
+        .catch(() => !cancelled && setResults([]))
+        .finally(() => !cancelled && setSearching(false));
     }, 200);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [search, selected]);
+  }, [search]);
 
-  const exactMatch = results.some((r) => r.name.toLowerCase() === search.trim().toLowerCase());
-  const canRequestCustom = search.trim().length > 0 && !exactMatch && !selected;
-  const canSubmit = !!selected || search.trim().length > 0;
+  const term = search.trim();
+  const exactMatch = results.some((r) => r.name.toLowerCase() === term.toLowerCase());
+  const alreadyCustom = lines.some(
+    (l) => l.item_id === null && l.name.toLowerCase() === term.toLowerCase()
+  );
+
+  function addCatalog(it: CatalogItem) {
+    setLines((prev) => {
+      const existing = prev.find((l) => l.item_id === it.id);
+      if (existing) {
+        return prev.map((l) => (l.item_id === it.id ? { ...l, quantity: l.quantity + 1 } : l));
+      }
+      return [
+        ...prev,
+        { key: `c${it.id}`, item_id: it.id, name: it.name, unit: it.unit, quantity: 1 },
+      ];
+    });
+    setSearch("");
+    setResults([]);
+  }
+
+  function addCustom(name: string) {
+    const n = name.trim();
+    if (!n) return;
+    setLines((prev) => [
+      ...prev,
+      { key: `x${n.toLowerCase()}-${prev.length}`, item_id: null, name: n, unit: null, quantity: 1 },
+    ]);
+    setSearch("");
+    setResults([]);
+  }
+
+  function setQty(key: string, qty: number) {
+    setLines((prev) =>
+      prev.map((l) => (l.key === key ? { ...l, quantity: Math.max(1, qty) } : l))
+    );
+  }
+  function removeLine(key: string) {
+    setLines((prev) => prev.filter((l) => l.key !== key));
+  }
 
   async function submit() {
+    if (lines.length === 0) return;
     setError(null);
     setSubmitting(true);
     try {
-      const payload: any = {};
-      if (selected) payload.item_id = selected.id;
-      else payload.custom_name = search.trim();
-      if (qty.trim()) payload.quantity = Math.max(1, Math.round(Number(qty) || 0));
-      if (note.trim()) payload.note = note.trim();
-      await api("/requests", { method: "POST", json: payload });
+      await api("/requests", {
+        method: "POST",
+        json: {
+          items: lines.map((l) =>
+            l.item_id
+              ? { item_id: l.item_id, quantity: l.quantity }
+              : { custom_name: l.name, quantity: l.quantity }
+          ),
+        },
+      });
       setDone(true);
-      setSelected(null);
+      setLines([]);
       setSearch("");
-      setQty("");
-      setNote("");
       setResults([]);
     } catch (e: any) {
       setError(e?.message || "Could not send request");
@@ -85,108 +130,137 @@ export default function Request() {
           <Text className="text-xl font-semibold text-stone-900 mt-1">Request sent</Text>
           <Text className="mt-2 text-stone-700">Your admins have been notified.</Text>
           <Pressable onPress={() => setDone(false)} className="mt-5 rounded-xl bg-stone-900 py-3">
-            <Text className="text-center text-amber-50 font-semibold">Request another</Text>
+            <Text className="text-center text-amber-50 font-semibold">New request</Text>
           </Pressable>
         </View>
       </SafeAreaView>
     );
   }
 
+  const totalQty = lines.reduce((s, l) => s + l.quantity, 0);
+
   return (
     <SafeAreaView className="flex-1 bg-amber-50" edges={["top"]}>
       <View className="px-4 py-3 border-b border-amber-300">
-        <Text className="text-xl font-bold text-stone-900">Request an item</Text>
+        <Text className="text-xl font-bold text-stone-900">Request items</Text>
         <Text className="text-sm text-stone-600 mt-0.5">
-          Missing something? Ask your admin for it.
+          Search to add, or type something new. Add as many as you need.
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
-        {/* What do you need */}
-        <Text className="text-sm font-semibold text-stone-700 mb-1">What do you need?</Text>
-        {selected ? (
-          <View className="flex-row items-center justify-between rounded-xl border border-amber-300 bg-white px-4 py-3">
-            <View>
-              <Text className="font-bold text-stone-900">{selected.name}</Text>
-              {selected.unit && <Text className="text-xs text-stone-500">per {selected.unit}</Text>}
-            </View>
-            <Pressable onPress={() => setSelected(null)}>
-              <Text className="text-stone-500 text-sm underline">Change</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <TextInput
-            placeholder="e.g. Milk, cupcakes…"
-            placeholderTextColor="#a8a29e"
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
-            className="rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-          />
-        )}
-
-        {/* Catalog matches */}
-        {!selected && (
-          <View className="mt-2">
-            {searching && <ActivityIndicator color="#78350f" className="my-2" />}
-            {results.slice(0, 8).map((it) => (
+      {/* Search + suggestions */}
+      <View className="px-4 pt-3">
+        <TextInput
+          placeholder="Search items… (e.g. Milk, cupcakes)"
+          placeholderTextColor="#a8a29e"
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+          className="rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+        />
+        {term.length > 0 && (
+          <View className="mt-1 rounded-xl border border-stone-200 bg-white overflow-hidden">
+            {searching && <ActivityIndicator color="#78350f" className="my-3" />}
+            {results.slice(0, 6).map((it) => (
               <Pressable
                 key={it.id}
-                onPress={() => setSelected(it)}
-                className="px-4 py-3 border-b border-stone-100 bg-white"
+                onPress={() => addCatalog(it)}
+                className="px-4 py-3 border-b border-stone-100 flex-row items-center justify-between"
               >
-                <Text className="text-stone-900 font-medium">{it.name}</Text>
-                {it.category && <Text className="text-xs text-stone-500">{it.category}</Text>}
+                <View>
+                  <Text className="text-stone-900 font-medium">{it.name}</Text>
+                  {it.category ? <Text className="text-xs text-stone-500">{it.category}</Text> : null}
+                </View>
+                <Text className="text-amber-700 font-bold text-lg">＋</Text>
               </Pressable>
             ))}
-            {canRequestCustom && (
-              <View className="mt-2 rounded-xl bg-amber-100 border border-amber-300 px-4 py-3">
+            {!exactMatch && !alreadyCustom && (
+              <Pressable onPress={() => addCustom(term)} className="px-4 py-3 bg-amber-50">
                 <Text className="text-stone-800">
-                  Not in the list — you’ll request{" "}
-                  <Text className="font-bold">“{search.trim()}”</Text> as a new item.
+                  ＋ Add <Text className="font-bold">“{term}”</Text> as a new item
                 </Text>
-              </View>
+              </Pressable>
+            )}
+            {!searching && results.length === 0 && exactMatch === false && term.length === 0 && (
+              <Text className="px-4 py-3 text-stone-500">Type to search…</Text>
             )}
           </View>
         )}
+      </View>
 
-        {/* Quantity */}
-        <Text className="text-sm font-semibold text-stone-700 mb-1 mt-5">Quantity (optional)</Text>
-        <TextInput
-          placeholder="e.g. 2"
-          placeholderTextColor="#a8a29e"
-          value={qty}
-          onChangeText={setQty}
-          keyboardType="number-pad"
-          className="rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-        />
-
-        {/* Note */}
-        <Text className="text-sm font-semibold text-stone-700 mb-1 mt-5">Note (optional)</Text>
-        <TextInput
-          placeholder="Anything the admin should know"
-          placeholderTextColor="#a8a29e"
-          value={note}
-          onChangeText={setNote}
-          multiline
-          className="rounded-xl border border-stone-300 bg-white px-4 py-3 text-stone-900 h-20"
-          style={{ textAlignVertical: "top" }}
-        />
+      {/* The request list */}
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+        {lines.length === 0 ? (
+          <View className="bg-white border border-amber-200 rounded-2xl p-6 mt-2">
+            <Text className="text-stone-600 text-center">
+              Nothing added yet. Search above and tap to build your list.
+            </Text>
+          </View>
+        ) : (
+          <View className="gap-2">
+            {lines.map((l) => (
+              <View
+                key={l.key}
+                className="flex-row items-center justify-between bg-white rounded-xl border border-stone-300 px-3 py-2.5"
+              >
+                <View className="flex-1 pr-2">
+                  <Text className="font-bold text-stone-900">{l.name}</Text>
+                  {l.item_id === null ? (
+                    <Text className="text-xs text-amber-700">new item</Text>
+                  ) : l.unit ? (
+                    <Text className="text-xs text-stone-500">per {l.unit}</Text>
+                  ) : null}
+                </View>
+                <View className="flex-row items-center gap-1.5">
+                  <Pressable
+                    onPress={() => setQty(l.key, l.quantity - 1)}
+                    className="w-9 h-9 rounded-lg bg-amber-100 border border-amber-300 items-center justify-center"
+                  >
+                    <Text className="text-amber-900 text-xl font-bold leading-none">−</Text>
+                  </Pressable>
+                  <TextInput
+                    value={String(l.quantity)}
+                    keyboardType="number-pad"
+                    selectTextOnFocus
+                    onChangeText={(t) => setQty(l.key, Math.max(1, Math.round(Number(t) || 1)))}
+                    className="w-12 h-9 text-center font-bold text-stone-900 rounded-lg border border-amber-300 bg-white"
+                  />
+                  <Pressable
+                    onPress={() => setQty(l.key, l.quantity + 1)}
+                    className="w-9 h-9 rounded-lg bg-amber-700 items-center justify-center"
+                  >
+                    <Text className="text-amber-50 text-xl font-bold leading-none">＋</Text>
+                  </Pressable>
+                  <Pressable onPress={() => removeLine(l.key)} className="w-9 h-9 items-center justify-center">
+                    <Text className="text-stone-400 text-xl">✕</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {error && <Text className="text-sm text-red-700 mt-3">{error}</Text>}
-
-        <Pressable
-          onPress={submit}
-          disabled={!canSubmit || submitting}
-          className={`mt-6 rounded-xl bg-stone-900 py-3 ${!canSubmit || submitting ? "opacity-60" : ""}`}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#fffbeb" />
-          ) : (
-            <Text className="text-center text-amber-50 font-semibold">Send request</Text>
-          )}
-        </Pressable>
       </ScrollView>
+
+      {/* Sticky submit */}
+      {lines.length > 0 && (
+        <View className="absolute bottom-0 left-0 right-0 bg-amber-50 border-t-2 border-amber-300 px-4 pt-3 pb-8">
+          <Pressable
+            onPress={submit}
+            disabled={submitting}
+            className={`rounded-xl bg-stone-900 py-3 ${submitting ? "opacity-60" : ""}`}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fffbeb" />
+            ) : (
+              <Text className="text-center text-amber-50 font-semibold">
+                Send request · {lines.length} item{lines.length === 1 ? "" : "s"} ({totalQty})
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      )}
     </SafeAreaView>
   );
 }

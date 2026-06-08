@@ -3,6 +3,21 @@ import { requireAuth } from "./_lib/auth";
 import { error, json, preflight } from "./_lib/http";
 import { sendExpoPush, PushMessage } from "./_lib/push";
 
+interface Line {
+  item_id: number | null;
+  name: string;
+  quantity: number | null;
+}
+
+// One short line summarizing a whole request for the push body.
+function summarize(lines: Line[]): string {
+  const fmt = (l: Line) => (l.quantity ? `${l.name} ×${l.quantity}` : l.name);
+  if (lines.length === 1) return fmt(lines[0]);
+  const shown = lines.slice(0, 3).map(fmt).join(", ");
+  const extra = lines.length - 3;
+  return `${lines.length} items: ${shown}${extra > 0 ? ` +${extra} more` : ""}`;
+}
+
 export default async (req: Request) => {
   const pf = preflight(req);
   if (pf) return pf;
@@ -50,67 +65,68 @@ export default async (req: Request) => {
       return error("Invalid JSON", 400);
     }
 
-    const hasItemId = body?.item_id !== undefined && body?.item_id !== null;
-    const customName = String(body?.custom_name ?? "").trim();
-    const note = String(body?.note ?? "").trim() || null;
+    // Accept a list of items; also tolerate the older single-item shape.
+    const rawItems = Array.isArray(body?.items) ? body.items : [body];
+    if (rawItems.length === 0) return error("No items in request", 400);
 
-    // quantity is optional, but if present it must be a positive integer.
-    let quantity: number | null = null;
-    if (body?.quantity !== undefined && body?.quantity !== null && body?.quantity !== "") {
-      const q = Math.round(Number(body.quantity));
-      if (!Number.isFinite(q) || q <= 0) return error("Invalid quantity", 400);
-      quantity = q;
+    const lines: Line[] = [];
+    for (const r of rawItems) {
+      const hasItemId = r?.item_id !== undefined && r?.item_id !== null;
+      const customName = String(r?.custom_name ?? "").trim();
+
+      let quantity: number | null = null;
+      if (r?.quantity !== undefined && r?.quantity !== null && r?.quantity !== "") {
+        const q = Math.round(Number(r.quantity));
+        if (!Number.isFinite(q) || q <= 0) return error("Invalid quantity", 400);
+        quantity = q;
+      }
+
+      if (hasItemId) {
+        const id = Number(r.item_id);
+        if (!Number.isFinite(id)) return error("Invalid item_id", 400);
+        const rows = (await sql`
+          SELECT id, name FROM items WHERE id = ${id} AND active = TRUE LIMIT 1
+        `) as Array<{ id: number; name: string }>;
+        const item = rows[0];
+        if (!item) return error("Item not found or inactive", 400);
+        lines.push({ item_id: Number(item.id), name: item.name, quantity });
+      } else if (customName) {
+        lines.push({ item_id: null, name: customName, quantity });
+      } else {
+        return error("Each item needs an item_id or custom_name", 400);
+      }
     }
 
-    let itemId: number | null = null;
-    let itemName: string;
-
-    if (hasItemId) {
-      const id = Number(body.item_id);
-      if (!Number.isFinite(id)) return error("Invalid item_id", 400);
-      const rows = (await sql`
-        SELECT id, name FROM items WHERE id = ${id} AND active = TRUE LIMIT 1
-      `) as Array<{ id: number; name: string }>;
-      const item = rows[0];
-      if (!item) return error("Item not found or inactive", 400);
-      itemId = Number(item.id);
-      itemName = item.name;
-    } else if (customName) {
-      itemName = customName;
-    } else {
-      return error("Provide an item_id or a custom_name", 400);
+    // One DB row per requested item.
+    for (const l of lines) {
+      await sql`
+        INSERT INTO requests (truck_id, item_id, custom_name, quantity)
+        VALUES (
+          ${Number(auth.user.sub)},
+          ${l.item_id},
+          ${l.item_id ? null : l.name},
+          ${l.quantity}
+        )
+      `;
     }
 
-    const inserted = (await sql`
-      INSERT INTO requests (truck_id, item_id, custom_name, quantity, note)
-      VALUES (
-        ${Number(auth.user.sub)},
-        ${itemId},
-        ${itemId ? null : itemName},
-        ${quantity},
-        ${note}
-      )
-      RETURNING id, created_at
-    `) as Array<{ id: number; created_at: string }>;
-    const row = inserted[0];
-
-    // Notify every admin device. auth.user.label is the truck's name.
+    // One push to all admins summarizing the whole request.
     const tokenRows = (await sql`
       SELECT expo_token FROM push_tokens WHERE role = 'admin'
     `) as Array<{ expo_token: string }>;
 
     if (tokenRows.length > 0) {
-      const qtySuffix = quantity ? ` × ${quantity}` : "";
+      const body = summarize(lines);
       const messages: PushMessage[] = tokenRows.map((t) => ({
         to: t.expo_token,
         title: `New request — ${auth.user.label}`,
-        body: `${itemName}${qtySuffix}`,
-        data: { type: "request", requestId: row.id },
+        body,
+        data: { type: "request" },
       }));
       await sendExpoPush(messages);
     }
 
-    return json({ id: row.id, created_at: row.created_at }, 201);
+    return json({ ok: true, count: lines.length }, 201);
   }
 
   return error("Method not allowed", 405);
