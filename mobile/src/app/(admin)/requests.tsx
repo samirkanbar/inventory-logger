@@ -145,7 +145,7 @@ export default function AdminRequests() {
                     <>
                       <Pressable
                         onPress={() => setStatus(item.id, "sent")}
-                        className="flex-1 rounded-xl bg-emerald-600 py-2.5"
+                        className="flex-1 rounded-xl bg-green-600 py-2.5 shadow-sm"
                       >
                         <Text className="text-center text-white font-semibold">Sent</Text>
                       </Pressable>
@@ -162,12 +162,12 @@ export default function AdminRequests() {
                 <View className="flex-row items-center justify-between mt-2">
                   <View
                     className={`rounded-full px-2.5 py-0.5 ${
-                      item.status === "sent" ? "bg-emerald-100" : "bg-red-100"
+                      item.status === "sent" ? "bg-green-100" : "bg-red-100"
                     }`}
                   >
                     <Text
                       className={`text-xs font-semibold ${
-                        item.status === "sent" ? "text-emerald-800" : "text-red-800"
+                        item.status === "sent" ? "text-green-800" : "text-red-800"
                       }`}
                     >
                       {item.status === "sent" ? "Sent" : "Declined"}
