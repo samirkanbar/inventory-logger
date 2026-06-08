@@ -31,7 +31,7 @@ export default async (req: Request) => {
       const rows = await sql`
         SELECT r.id, r.truck_id, t.name AS truck_name, r.item_id,
           COALESCE(i.name, r.custom_name) AS item_name,
-          r.custom_name, r.quantity, r.note, r.status, r.created_at
+          r.custom_name, r.quantity, r.note, r.status, r.created_at, r.resolved_at
         FROM requests r
         JOIN trucks t ON t.id = r.truck_id
         LEFT JOIN items i ON i.id = r.item_id
@@ -127,6 +127,39 @@ export default async (req: Request) => {
     }
 
     return json({ ok: true, count: lines.length }, 201);
+  }
+
+  if (req.method === "PATCH") {
+    // Admins mark a request as sent or declined (or reopen it).
+    if (auth.user.role !== "admin") return error("Only admins can update requests", 403);
+
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return error("Invalid JSON", 400);
+    }
+    const id = Number(body?.id);
+    const status = String(body?.status ?? "");
+    if (!Number.isFinite(id)) return error("Invalid id", 400);
+    if (!["open", "sent", "declined"].includes(status)) return error("Invalid status", 400);
+
+    // resolved_at is stamped when handled, cleared if reopened.
+    const rows =
+      status === "open"
+        ? ((await sql`
+            UPDATE requests SET status = 'open', resolved_at = NULL
+            WHERE id = ${id}
+            RETURNING id, status, resolved_at
+          `) as any[])
+        : ((await sql`
+            UPDATE requests SET status = ${status}, resolved_at = NOW()
+            WHERE id = ${id}
+            RETURNING id, status, resolved_at
+          `) as any[]);
+
+    if (rows.length === 0) return error("Request not found", 404);
+    return json({ request: rows[0] });
   }
 
   return error("Method not allowed", 405);

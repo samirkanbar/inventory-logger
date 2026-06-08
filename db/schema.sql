@@ -84,6 +84,8 @@ CREATE TABLE IF NOT EXISTS requests (
 );
 CREATE INDEX IF NOT EXISTS requests_created_idx ON requests (created_at DESC);
 CREATE INDEX IF NOT EXISTS requests_truck_idx ON requests (truck_id, created_at DESC);
+-- When an admin marks a request sent/declined we stamp the time it was handled.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
 
 -- Expo push notification tokens. user_id is polymorphic: it points at admins.id
 -- or trucks.id depending on `role`, so it can't be a single FK. One row per device.

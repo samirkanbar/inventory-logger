@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, FlatList, RefreshControl, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/money";
+
+type Status = "open" | "sent" | "declined";
 
 interface RequestRow {
   id: number;
@@ -11,8 +13,9 @@ interface RequestRow {
   item_name: string;
   quantity: number | null;
   note: string | null;
-  status: string;
+  status: Status;
   created_at: string;
+  resolved_at: string | null;
 }
 
 export default function AdminRequests() {
@@ -20,6 +23,8 @@ export default function AdminRequests() {
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState<"open" | "history">("open");
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -40,6 +45,31 @@ export default function AdminRequests() {
     setRefreshing(false);
   }, [load]);
 
+  async function setStatus(id: number, status: Status) {
+    setBusyId(id);
+    try {
+      const r = await api<{ request: { id: number; status: Status; resolved_at: string | null } }>(
+        "/requests",
+        { method: "PATCH", json: { id, status } }
+      );
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === id
+            ? { ...row, status: r.request.status, resolved_at: r.request.resolved_at }
+            : row
+        )
+      );
+    } catch {
+      // leave row as-is on failure
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const open = useMemo(() => rows.filter((r) => r.status === "open"), [rows]);
+  const history = useMemo(() => rows.filter((r) => r.status !== "open"), [rows]);
+  const data = tab === "open" ? open : history;
+
   return (
     <SafeAreaView className="flex-1 bg-amber-50" edges={["top"]}>
       {/* Header */}
@@ -53,20 +83,42 @@ export default function AdminRequests() {
         </Pressable>
       </View>
 
+      {/* Open / History toggle */}
+      <View className="flex-row rounded-xl bg-stone-200 p-1 mx-4 mt-3">
+        <Pressable
+          onPress={() => setTab("open")}
+          className={`flex-1 py-2 rounded-lg ${tab === "open" ? "bg-white" : ""}`}
+        >
+          <Text className={`text-center font-medium ${tab === "open" ? "text-stone-900" : "text-stone-600"}`}>
+            Open{open.length ? ` (${open.length})` : ""}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setTab("history")}
+          className={`flex-1 py-2 rounded-lg ${tab === "history" ? "bg-white" : ""}`}
+        >
+          <Text className={`text-center font-medium ${tab === "history" ? "text-stone-900" : "text-stone-600"}`}>
+            History{history.length ? ` (${history.length})` : ""}
+          </Text>
+        </Pressable>
+      </View>
+
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#78350f" />
         </View>
       ) : (
         <FlatList
-          data={rows}
+          data={data}
           keyExtractor={(r) => String(r.id)}
           contentContainerStyle={{ padding: 16, gap: 10 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#78350f" />}
           ListEmptyComponent={
             <View className="bg-white border border-amber-200 rounded-2xl p-6 mt-8">
               <Text className="text-stone-600 text-center">
-                No requests yet. When a location asks for something, it shows up here and pings your phone.
+                {tab === "open"
+                  ? "No open requests. When a location asks for something, it shows up here and pings your phone."
+                  : "Nothing handled yet. Requests you mark Sent or Declined will appear here."}
               </Text>
             </View>
           }
@@ -77,10 +129,55 @@ export default function AdminRequests() {
                   {item.item_name}
                   {item.quantity ? <Text className="text-stone-700">  × {item.quantity}</Text> : null}
                 </Text>
-                <Text className="text-xs text-stone-400">{formatDateTime(item.created_at)}</Text>
+                <Text className="text-xs text-stone-400">
+                  {formatDateTime(item.resolved_at ?? item.created_at)}
+                </Text>
               </View>
               <Text className="text-sm text-amber-800 font-medium mt-1">{item.truck_name}</Text>
-              {item.note ? <Text className="text-sm text-stone-600 mt-1">“{item.note}”</Text> : null}
+
+              {tab === "open" ? (
+                <View className="flex-row gap-2 mt-3">
+                  {busyId === item.id ? (
+                    <View className="flex-1 items-center py-2.5">
+                      <ActivityIndicator color="#78350f" />
+                    </View>
+                  ) : (
+                    <>
+                      <Pressable
+                        onPress={() => setStatus(item.id, "sent")}
+                        className="flex-1 rounded-xl bg-emerald-600 py-2.5"
+                      >
+                        <Text className="text-center text-white font-semibold">Sent</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setStatus(item.id, "declined")}
+                        className="flex-1 rounded-xl border border-red-300 py-2.5"
+                      >
+                        <Text className="text-center text-red-700 font-semibold">Decline</Text>
+                      </Pressable>
+                    </>
+                  )}
+                </View>
+              ) : (
+                <View className="flex-row items-center justify-between mt-2">
+                  <View
+                    className={`rounded-full px-2.5 py-0.5 ${
+                      item.status === "sent" ? "bg-emerald-100" : "bg-red-100"
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-semibold ${
+                        item.status === "sent" ? "text-emerald-800" : "text-red-800"
+                      }`}
+                    >
+                      {item.status === "sent" ? "Sent" : "Declined"}
+                    </Text>
+                  </View>
+                  <Pressable onPress={() => setStatus(item.id, "open")}>
+                    <Text className="text-xs text-stone-500 underline">Reopen</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           )}
         />

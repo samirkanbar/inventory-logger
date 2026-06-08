@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS requests (
 );
 CREATE INDEX IF NOT EXISTS requests_created_idx ON requests (created_at DESC);
 CREATE INDEX IF NOT EXISTS requests_truck_idx ON requests (truck_id, created_at DESC);
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS push_tokens (
   id          BIGSERIAL PRIMARY KEY,
