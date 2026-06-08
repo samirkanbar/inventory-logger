@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, FlatList, RefreshControl, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/money";
@@ -20,6 +20,7 @@ interface RequestRow {
 
 export default function AdminRequests() {
   const { me, logout } = useAuth();
+  const insets = useSafeAreaInsets();
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -83,21 +84,21 @@ export default function AdminRequests() {
         </Pressable>
       </View>
 
-      {/* Open / History toggle */}
-      <View className="flex-row rounded-xl bg-stone-200 p-1 mx-4 mt-3">
+      {/* Open / History toggle — warm to match the rest of the app */}
+      <View className="flex-row rounded-xl bg-amber-100 border border-amber-300 p-1 mx-4 mt-3">
         <Pressable
           onPress={() => setTab("open")}
-          className={`flex-1 py-2 rounded-lg ${tab === "open" ? "bg-white" : ""}`}
+          className={`flex-1 py-2 rounded-lg ${tab === "open" ? "bg-white shadow-sm" : ""}`}
         >
-          <Text className={`text-center font-medium ${tab === "open" ? "text-stone-900" : "text-stone-600"}`}>
+          <Text className={`text-center font-semibold ${tab === "open" ? "text-stone-900" : "text-stone-500"}`}>
             Open{open.length ? ` (${open.length})` : ""}
           </Text>
         </Pressable>
         <Pressable
           onPress={() => setTab("history")}
-          className={`flex-1 py-2 rounded-lg ${tab === "history" ? "bg-white" : ""}`}
+          className={`flex-1 py-2 rounded-lg ${tab === "history" ? "bg-white shadow-sm" : ""}`}
         >
-          <Text className={`text-center font-medium ${tab === "history" ? "text-stone-900" : "text-stone-600"}`}>
+          <Text className={`text-center font-semibold ${tab === "history" ? "text-stone-900" : "text-stone-500"}`}>
             History{history.length ? ` (${history.length})` : ""}
           </Text>
         </Pressable>
@@ -111,7 +112,7 @@ export default function AdminRequests() {
         <FlatList
           data={data}
           keyExtractor={(r) => String(r.id)}
-          contentContainerStyle={{ padding: 16, gap: 10 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 10 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#78350f" />}
           ListEmptyComponent={
             <View className="bg-white border border-amber-200 rounded-2xl p-6 mt-8">
