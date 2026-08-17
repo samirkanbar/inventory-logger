@@ -20,6 +20,7 @@ export default function AdminLayout() {
         <nav className="max-w-6xl mx-auto px-4 pb-2 flex gap-1 text-sm">
           {[
             { to: "submissions", label: "Submissions" },
+            { to: "requests", label: "Requests" },
             { to: "items", label: "Items" },
             { to: "trucks", label: "Locations" },
             { to: "admins", label: "Admins" },

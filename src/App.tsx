@@ -8,6 +8,7 @@ import AdminItems from "./pages/AdminItems";
 import AdminTrucks from "./pages/AdminTrucks";
 import AdminAdmins from "./pages/AdminAdmins";
 import AdminSubmissionDetail from "./pages/AdminSubmissionDetail";
+import AdminRequests from "./pages/AdminRequests";
 
 export default function App() {
   const { me, loading } = useAuth();
@@ -43,6 +44,7 @@ export default function App() {
         <Route index element={<Navigate to="submissions" replace />} />
         <Route path="submissions" element={<AdminSubmissions />} />
         <Route path="submissions/:id" element={<AdminSubmissionDetail />} />
+        <Route path="requests" element={<AdminRequests />} />
         <Route path="items" element={<AdminItems />} />
         <Route path="trucks" element={<AdminTrucks />} />
         <Route path="admins" element={<AdminAdmins />} />
