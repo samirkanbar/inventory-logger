@@ -44,7 +44,7 @@ export default async (req: Request) => {
     const rows = await sql`
       SELECT r.id, r.item_id,
         COALESCE(i.name, r.custom_name) AS item_name,
-        r.custom_name, r.quantity, r.note, r.status, r.created_at
+        r.custom_name, r.quantity, r.note, r.status, r.created_at, r.resolved_at
       FROM requests r
       LEFT JOIN items i ON i.id = r.item_id
       WHERE r.truck_id = ${Number(auth.user.sub)}
@@ -150,16 +150,47 @@ export default async (req: Request) => {
         ? ((await sql`
             UPDATE requests SET status = 'open', resolved_at = NULL
             WHERE id = ${id}
-            RETURNING id, status, resolved_at
+            RETURNING id, truck_id, item_id, custom_name, status, resolved_at
           `) as any[])
         : ((await sql`
             UPDATE requests SET status = ${status}, resolved_at = NOW()
             WHERE id = ${id}
-            RETURNING id, status, resolved_at
+            RETURNING id, truck_id, item_id, custom_name, status, resolved_at
           `) as any[]);
 
     if (rows.length === 0) return error("Request not found", 404);
-    return json({ request: rows[0] });
+    const updated = rows[0];
+
+    // Tell the truck what we decided. Reopening is admin-side housekeeping, so
+    // it stays silent — only a real outcome is worth a notification.
+    if (status !== "open") {
+      const nameRows = updated.item_id
+        ? ((await sql`
+            SELECT name FROM items WHERE id = ${Number(updated.item_id)} LIMIT 1
+          `) as Array<{ name: string }>)
+        : [];
+      const itemName = nameRows[0]?.name ?? updated.custom_name ?? "Your request";
+
+      const tokenRows = (await sql`
+        SELECT expo_token FROM push_tokens
+        WHERE role = 'truck' AND user_id = ${Number(updated.truck_id)}
+      `) as Array<{ expo_token: string }>;
+
+      if (tokenRows.length > 0) {
+        const messages: PushMessage[] = tokenRows.map((t) => ({
+          to: t.expo_token,
+          title: status === "sent" ? "Request sent" : "Request declined",
+          body:
+            status === "sent"
+              ? `${itemName} is on the way.`
+              : `${itemName} was declined.`,
+          data: { type: "request_update", id: Number(updated.id), status },
+        }));
+        await sendExpoPush(messages);
+      }
+    }
+
+    return json({ request: updated });
   }
 
   return error("Method not allowed", 405);

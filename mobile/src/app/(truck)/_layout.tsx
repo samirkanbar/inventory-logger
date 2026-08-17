@@ -30,6 +30,13 @@ export default function TruckLayout() {
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>➕</Text>,
         }}
       />
+      <Tabs.Screen
+        name="status"
+        options={{
+          title: "My requests",
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📋</Text>,
+        }}
+      />
     </Tabs>
   );
 }
