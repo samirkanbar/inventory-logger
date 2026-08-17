@@ -17,6 +17,18 @@ export default async (req: Request) => {
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
 
+  // all=1 returns the whole catalog grouped for browsing, so a truck can pick
+  // from a category list instead of having to guess a search term.
+  if (url.searchParams.get("all") === "1") {
+    const rows = await sql`
+      SELECT id, name, unit, category
+      FROM items
+      WHERE active = TRUE
+      ORDER BY LOWER(COALESCE(category, 'zzz')) ASC, LOWER(name) ASC
+    `;
+    return json({ items: rows });
+  }
+
   const rows = q
     ? await sql`
         SELECT id, name, unit, category
