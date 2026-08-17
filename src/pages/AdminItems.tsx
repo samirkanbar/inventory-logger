@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { api } from "../api";
 import { formatMoney, parseMoneyToCents } from "../money";
@@ -100,6 +100,17 @@ export default function AdminItems() {
   const [editingAssignFor, setEditingAssignFor] = useState<Item | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Browsing the catalog: the table is useless at 250+ items without these.
+  const [search, setSearch] = useState("");
+  const [filterTruck, setFilterTruck] = useState<string>("");
+  const [filterCategory, setFilterCategory] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive" | "unassigned">(
+    "all"
+  );
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [confirmReplace, setConfirmReplace] = useState(false);
+
   async function load() {
     setLoading(true);
     const [i, t] = await Promise.all([
@@ -114,6 +125,83 @@ export default function AdminItems() {
   useEffect(() => {
     load().catch(console.error);
   }, []);
+
+  // What this file will actually do, worked out before anything is committed.
+  // Matching mirrors the DB exactly: items are unique on LOWER(name), so a row
+  // whose name already exists is an UPDATE, never a duplicate.
+  const importDiff = useMemo(() => {
+    if (!preview || preview.length === 0) return null;
+    const byName = new Map(items.map((i) => [i.name.trim().toLowerCase(), i]));
+    const created: ParsedRow[] = [];
+    const updated: ParsedRow[] = [];
+    const priceChanges: Array<{ item: Item; to: number }> = [];
+    const dupesInFile: string[] = [];
+    const seen = new Set<string>();
+
+    for (const r of preview) {
+      const key = r.name.trim().toLowerCase();
+      if (seen.has(key)) dupesInFile.push(r.name);
+      seen.add(key);
+
+      const existing = byName.get(key);
+      if (!existing) {
+        created.push(r);
+        continue;
+      }
+      updated.push(r);
+      if (existing.price_cents !== r.price_cents) priceChanges.push({ item: existing, to: r.price_cents });
+    }
+    return { created, updated, priceChanges, dupesInFile };
+  }, [preview, items]);
+
+  // Prices are global, so repricing an item here also reprices it for any other
+  // location that shares it. Those locations are NOT part of this import, which
+  // is exactly why it needs saying out loud.
+  const bystanderTrucks = useMemo(() => {
+    if (!importDiff || importDiff.priceChanges.length === 0) return [];
+    const ids = new Set<number>();
+    for (const { item } of importDiff.priceChanges) {
+      for (const raw of item.truck_ids) {
+        const tid = Number(raw);
+        if (!selectedTrucks.has(tid)) ids.add(tid);
+      }
+    }
+    return Array.from(ids);
+  }, [importDiff, selectedTrucks]);
+
+  // How many assignments replace mode would delete, counted exactly.
+  const replaceImpact = useMemo(() => {
+    if (!replace || !preview || preview.length === 0) return 0;
+    const importNames = new Set(preview.map((r) => r.name.trim().toLowerCase()));
+    let count = 0;
+    for (const it of items) {
+      if (importNames.has(it.name.trim().toLowerCase())) continue;
+      for (const raw of it.truck_ids) {
+        if (selectedTrucks.has(Number(raw))) count++;
+      }
+    }
+    return count;
+  }, [replace, preview, items, selectedTrucks]);
+
+  const categories = useMemo(() => {
+    const s = new Set<string>();
+    for (const i of items) if (i.category) s.add(i.category);
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const tid = filterTruck ? Number(filterTruck) : null;
+    return items.filter((i) => {
+      if (q && !i.name.toLowerCase().includes(q)) return false;
+      if (tid !== null && !i.truck_ids.some((x) => Number(x) === tid)) return false;
+      if (filterCategory && (i.category ?? "") !== filterCategory) return false;
+      if (filterStatus === "active" && !i.active) return false;
+      if (filterStatus === "inactive" && i.active) return false;
+      if (filterStatus === "unassigned" && i.truck_ids.length > 0) return false;
+      return true;
+    });
+  }, [items, search, filterTruck, filterCategory, filterStatus]);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -141,12 +229,38 @@ export default function AdminItems() {
     setSelectedTrucks(new Set());
   }
 
+  // Replace mode deletes assignments. It never runs without an explicit
+  // confirmation naming how many.
+  function requestImport() {
+    if (!preview || preview.length === 0) return;
+    if (selectedTrucks.size === 0) {
+      setMsg("Pick at least one location to apply this import to.");
+      return;
+    }
+    if (replace && replaceImpact > 0) {
+      setConfirmReplace(true);
+      return;
+    }
+    doImport();
+  }
+
+  async function addItem(row: ParsedRow, truckIds: number[]) {
+    await api("/items", {
+      method: "POST",
+      json: { items: [row], truck_ids: truckIds, replace: false },
+    });
+    setShowAdd(false);
+    setMsg(`Saved “${row.name}”.`);
+    await load();
+  }
+
   async function doImport() {
     if (!preview || preview.length === 0) return;
     if (selectedTrucks.size === 0) {
-      setMsg("Pick at least one truck to apply this import to.");
+      setMsg("Pick at least one location to apply this import to.");
       return;
     }
+    setConfirmReplace(false);
     setImporting(true);
     setMsg(null);
     try {
@@ -204,15 +318,30 @@ export default function AdminItems() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-stone-900">Items & prices</h1>
-      <p className="text-sm text-slate-600 mt-1">
-        Upload a .csv or .xlsx with columns <code className="bg-stone-100 px-1.5 py-0.5 rounded">name</code>,{" "}
-        <code className="bg-stone-100 px-1.5 py-0.5 rounded">price</code>, and optionally{" "}
-        <code className="bg-stone-100 px-1.5 py-0.5 rounded">unit</code> and{" "}
-        <code className="bg-stone-100 px-1.5 py-0.5 rounded">category</code>. Pick which trucks the items go to.
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-stone-900">Items & prices</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            One item can be shared by many locations. Prices are the same everywhere.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="shrink-0 rounded-xl bg-stone-900 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-stone-800 shadow-sm"
+        >
+          + Add item
+        </button>
+      </div>
 
       <div className="mt-4 bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
+        <div className="text-sm font-medium text-stone-800">Bulk upload</div>
+        <p className="text-xs text-slate-600 mt-0.5 mb-3">
+          A .csv or .xlsx with <code className="bg-stone-100 px-1 py-0.5 rounded">name</code> and{" "}
+          <code className="bg-stone-100 px-1 py-0.5 rounded">price</code> columns, optionally{" "}
+          <code className="bg-stone-100 px-1 py-0.5 rounded">unit</code> and{" "}
+          <code className="bg-stone-100 px-1 py-0.5 rounded">category</code>. Re-uploading is safe —
+          items are matched by name and updated in place, so you can't create duplicates.
+        </p>
         <div className="flex items-center gap-3 flex-wrap">
           <input
             ref={fileRef}
@@ -221,21 +350,13 @@ export default function AdminItems() {
             onChange={onFile}
             className="text-sm"
           />
-          <label className="text-sm text-slate-700 flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={replace}
-              onChange={(e) => setReplace(e.target.checked)}
-            />
-            Replace mode (un-assign other items from selected trucks)
-          </label>
         </div>
 
         {/* Truck multi-select */}
         <div className="mt-4">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm font-medium text-stone-800">
-              Apply to truck{selectedTrucks.size === 1 ? "" : "s"}
+              Apply to location{selectedTrucks.size === 1 ? "" : "s"}
               {selectedTrucks.size > 0 && (
                 <span className="text-stone-500 font-normal"> · {selectedTrucks.size} selected</span>
               )}
@@ -256,7 +377,9 @@ export default function AdminItems() {
             </div>
           </div>
           {trucks.length === 0 ? (
-            <div className="text-sm text-stone-500">No trucks yet — create one in the Trucks tab first.</div>
+            <div className="text-sm text-stone-500">
+              No locations yet — create one in the Locations tab first.
+            </div>
           ) : (
             <div className="flex flex-wrap gap-2">
               {trucks.map((t) => {
@@ -290,8 +413,73 @@ export default function AdminItems() {
 
         {preview && preview.length > 0 && (
           <div className="mt-3">
+            {importDiff && (
+              <div className="mb-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                <div className="text-sm font-medium text-stone-800">
+                  What this file will do
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                  <span className="rounded-full bg-green-100 text-green-800 px-2.5 py-0.5 font-medium">
+                    {importDiff.created.length} new
+                  </span>
+                  <span className="rounded-full bg-blue-100 text-blue-800 px-2.5 py-0.5 font-medium">
+                    {importDiff.updated.length} already exist → will update
+                  </span>
+                  {importDiff.priceChanges.length > 0 && (
+                    <span className="rounded-full bg-amber-100 text-amber-900 px-2.5 py-0.5 font-medium">
+                      {importDiff.priceChanges.length} price change
+                      {importDiff.priceChanges.length === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </div>
+
+                {importDiff.dupesInFile.length > 0 && (
+                  <p className="mt-2 text-xs text-amber-800">
+                    Your file lists {importDiff.dupesInFile.length} name
+                    {importDiff.dupesInFile.length === 1 ? "" : "s"} more than once (
+                    {importDiff.dupesInFile.slice(0, 3).join(", ")}
+                    {importDiff.dupesInFile.length > 3 ? "…" : ""}). The last row wins.
+                  </p>
+                )}
+
+                {importDiff.priceChanges.length > 0 && (
+                  <div className="mt-3">
+                    <div className="text-xs font-medium text-stone-700 mb-1">Price changes</div>
+                    <div className="max-h-32 overflow-auto rounded-lg border border-stone-200 bg-white divide-y divide-stone-100">
+                      {importDiff.priceChanges.map(({ item, to }) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between px-3 py-1.5 text-sm"
+                        >
+                          <span className="text-stone-800">{item.name}</span>
+                          <span className="tabular-nums">
+                            <span className="text-stone-500 line-through">
+                              {formatMoney(item.price_cents)}
+                            </span>
+                            <span className="mx-1.5 text-stone-400">→</span>
+                            <span className="font-semibold text-amber-800">{formatMoney(to)}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {bystanderTrucks.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+                    <p className="text-xs text-amber-900">
+                      <strong>Heads up:</strong> prices are shared across locations, so these price
+                      changes also apply to {bystanderTrucks.map(truckNameFor).join(", ")} — which
+                      {bystanderTrucks.length === 1 ? " isn't" : " aren't"} part of this import.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="text-sm text-slate-700 mb-2">
-              Preview ({preview.length} row{preview.length === 1 ? "" : "s"}):
+              All {preview.length} row{preview.length === 1 ? "" : "s"}
+              {preview.length > 100 ? " (showing first 100)" : ""}:
             </div>
             <div className="max-h-60 overflow-auto border border-stone-200 rounded-lg">
               <table className="w-full text-sm">
@@ -327,16 +515,44 @@ export default function AdminItems() {
                 </tbody>
               </table>
             </div>
+            <label className="mt-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50/60 p-3">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={replace}
+                onChange={(e) => setReplace(e.target.checked)}
+              />
+              <span className="text-sm">
+                <span className="font-medium text-rose-900">
+                  Make this file the complete list for the selected location
+                  {selectedTrucks.size === 1 ? "" : "s"}
+                </span>
+                <span className="block text-xs text-rose-800 mt-0.5">
+                  Anything not in this file gets removed from{" "}
+                  {selectedTrucks.size === 0
+                    ? "them"
+                    : Array.from(selectedTrucks).map(truckNameFor).join(", ")}
+                  .{" "}
+                  {replace && replaceImpact > 0 && (
+                    <strong>That's {replaceImpact} item assignments right now.</strong>
+                  )}
+                  {replace && replaceImpact === 0 && <>Nothing would be removed.</>}
+                </span>
+              </span>
+            </label>
+
             <button
-              onClick={doImport}
+              onClick={requestImport}
               disabled={importing || selectedTrucks.size === 0}
               className="mt-3 rounded-xl bg-amber-700 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-amber-800 shadow-sm disabled:opacity-50"
             >
               {importing
                 ? "Importing…"
                 : selectedTrucks.size === 0
-                ? "Pick at least one truck to import"
-                : `Import ${preview.length} item${preview.length === 1 ? "" : "s"} → ${selectedTrucks.size} truck${selectedTrucks.size === 1 ? "" : "s"}`}
+                ? "Pick at least one location to import"
+                : `Import ${preview.length} item${preview.length === 1 ? "" : "s"} → ${
+                    selectedTrucks.size
+                  } location${selectedTrucks.size === 1 ? "" : "s"}`}
             </button>
           </div>
         )}
@@ -344,11 +560,87 @@ export default function AdminItems() {
         {msg && <div className="mt-3 text-sm text-slate-700">{msg}</div>}
       </div>
 
-      <h2 className="mt-8 text-lg font-semibold text-stone-900">Current items</h2>
+      <div className="mt-8 flex items-baseline justify-between gap-4 flex-wrap">
+        <h2 className="text-lg font-semibold text-stone-900">
+          {filterTruck
+            ? `${truckNameFor(Number(filterTruck))} — ${filteredItems.length} item${
+                filteredItems.length === 1 ? "" : "s"
+              }`
+            : "Current items"}
+        </h2>
+        {!loading && items.length > 0 && (
+          <div className="text-sm text-slate-500">
+            Showing {filteredItems.length} of {items.length}
+          </div>
+        )}
+      </div>
+
+      {!loading && items.length > 0 && (
+        <div className="mt-3 bg-white rounded-2xl border border-stone-200 shadow-sm p-3 flex flex-wrap gap-2 items-center">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search items…"
+            className="flex-1 min-w-[180px] rounded-xl border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
+          />
+          <select
+            value={filterTruck}
+            onChange={(e) => setFilterTruck(e.target.value)}
+            className="rounded-xl border border-stone-300 px-3 py-2 text-sm bg-white outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
+          >
+            <option value="">All locations</option>
+            {trucks.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="rounded-xl border border-stone-300 px-3 py-2 text-sm bg-white outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
+          >
+            <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+            className="rounded-xl border border-stone-300 px-3 py-2 text-sm bg-white outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
+          >
+            <option value="all">Any status</option>
+            <option value="active">Active only</option>
+            <option value="inactive">Inactive only</option>
+            <option value="unassigned">Unassigned only</option>
+          </select>
+          {(search || filterTruck || filterCategory || filterStatus !== "all") && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setFilterTruck("");
+                setFilterCategory("");
+                setFilterStatus("all");
+              }}
+              className="rounded-xl bg-stone-100 border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-200"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="text-slate-500 mt-3">Loading…</div>
       ) : items.length === 0 ? (
-        <div className="text-slate-500 mt-3">No items yet. Upload a file above.</div>
+        <div className="text-slate-500 mt-3">No items yet. Add one above or upload a file.</div>
+      ) : filteredItems.length === 0 ? (
+        <div className="text-slate-600 mt-3 bg-white border border-stone-200 rounded-2xl shadow-sm p-6 text-center">
+          No items match these filters.
+        </div>
       ) : (
         <div className="mt-3 bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
@@ -358,13 +650,13 @@ export default function AdminItems() {
                 <th className="px-4 py-3 font-medium">Category</th>
                 <th className="px-4 py-3 font-medium">Unit</th>
                 <th className="px-4 py-3 font-medium text-right">Price</th>
-                <th className="px-4 py-3 font-medium">Trucks</th>
+                <th className="px-4 py-3 font-medium">Locations</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {items.map((it) => {
+              {filteredItems.map((it) => {
                 const c = colorForCategory(it.category);
                 return (
                   <tr key={it.id} className={it.active ? "" : "opacity-50"}>
@@ -440,6 +732,259 @@ export default function AdminItems() {
           onSave={(ids) => saveAssignments(editingAssignFor, ids)}
         />
       )}
+
+      {showAdd && (
+        <AddItemModal
+          trucks={trucks}
+          items={items}
+          onCancel={() => setShowAdd(false)}
+          onSave={addItem}
+        />
+      )}
+
+      {confirmReplace && (
+        <ConfirmReplaceModal
+          count={replaceImpact}
+          truckNames={Array.from(selectedTrucks).map(truckNameFor)}
+          onCancel={() => setConfirmReplace(false)}
+          onConfirm={doImport}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConfirmReplaceModal({
+  count,
+  truckNames,
+  onCancel,
+  onConfirm,
+}: {
+  count: number;
+  truckNames: string[];
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/40 z-30 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
+        <div className="text-sm text-rose-700 font-medium">Confirm removal</div>
+        <h2 className="text-xl font-semibold text-stone-900 mt-1">
+          This removes {count} item assignment{count === 1 ? "" : "s"}
+        </h2>
+        <p className="text-sm text-slate-600 mt-2">
+          You've marked this file as the complete list for{" "}
+          <strong className="text-stone-900">{truckNames.join(", ")}</strong>. Any item those
+          locations currently have that isn't in your file will stop showing in their app.
+        </p>
+        <p className="text-xs text-slate-500 mt-2">
+          The items themselves stay in your catalog — only the assignment is removed, so you can
+          re-add them later.
+        </p>
+        <div className="mt-5 flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="rounded-xl bg-rose-700 text-white px-4 py-2 text-sm font-medium hover:bg-rose-800 shadow-sm"
+          >
+            Yes, remove {count}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddItemModal({
+  trucks,
+  items,
+  onCancel,
+  onSave,
+}: {
+  trucks: Truck[];
+  items: Item[];
+  onCancel: () => void;
+  onSave: (row: ParsedRow, truckIds: number[]) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [unit, setUnit] = useState("");
+  const [category, setCategory] = useState("");
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const categories = useMemo(() => {
+    const s = new Set<string>();
+    for (const i of items) if (i.category) s.add(i.category);
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
+  // Saving a name that already exists updates that item rather than creating a
+  // second one — say so before they hit save, not after.
+  const existing = useMemo(() => {
+    const key = name.trim().toLowerCase();
+    if (!key) return null;
+    return items.find((i) => i.name.trim().toLowerCase() === key) ?? null;
+  }, [name, items]);
+
+  function toggle(id: number) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function save() {
+    const n = name.trim();
+    if (!n) return setErr("Name is required.");
+    const cents = parseMoneyToCents(price);
+    if (cents == null || cents < 0) return setErr("Enter a valid price, e.g. 4.29");
+    if (picked.size === 0) return setErr("Pick at least one location.");
+
+    setErr(null);
+    setBusy(true);
+    try {
+      await onSave(
+        { name: n, price_cents: cents, unit: unit.trim() || null, category: category.trim() || null },
+        Array.from(picked)
+      );
+    } catch (e: any) {
+      setErr(e?.message || "Couldn't save that item");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-30 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+        <div className="text-sm text-stone-500">New item</div>
+        <h2 className="text-xl font-semibold text-stone-900 mt-1">Add a single item</h2>
+
+        <div className="mt-4 grid gap-3">
+          <label className="block">
+            <span className="text-sm font-medium text-stone-800">Name</span>
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Oat Milk"
+              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
+            />
+          </label>
+
+          {existing && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
+              <p className="text-xs text-blue-900">
+                <strong>{existing.name}</strong> already exists at{" "}
+                {formatMoney(existing.price_cents)}. Saving will update it and add your selected
+                locations — it won't create a duplicate.
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-sm font-medium text-stone-800">Price</span>
+              <input
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                inputMode="decimal"
+                placeholder="4.29"
+                className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200 tabular-nums"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-stone-800">
+                Unit <span className="text-stone-400 font-normal">(optional)</span>
+              </span>
+              <input
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                placeholder="gallon"
+                className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
+              />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="text-sm font-medium text-stone-800">
+              Category <span className="text-stone-400 font-normal">(optional)</span>
+            </span>
+            <input
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              list="category-options"
+              placeholder="Dairy"
+              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
+            />
+            <datalist id="category-options">
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+            <span className="text-xs text-stone-500 mt-1 block">
+              Groups the item in the truck app. Pick an existing one or type a new one.
+            </span>
+          </label>
+
+          <div>
+            <span className="text-sm font-medium text-stone-800">Locations</span>
+            {trucks.length === 0 ? (
+              <div className="mt-1 text-sm text-stone-500">
+                No locations yet — create one in the Locations tab first.
+              </div>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {trucks.map((t) => {
+                  const selected = picked.has(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => toggle(t.id)}
+                      className={`text-sm rounded-full px-3 py-1.5 border transition ${
+                        selected
+                          ? "bg-amber-700 text-amber-50 border-amber-700 shadow-sm"
+                          : "bg-white text-stone-700 border-stone-300 hover:border-amber-500"
+                      } ${t.active ? "" : "opacity-50"}`}
+                    >
+                      {selected && <span className="mr-1">✓</span>}
+                      {t.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {err && <div className="text-sm text-rose-700">{err}</div>}
+        </div>
+
+        <div className="mt-5 flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            disabled={busy}
+            className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={busy}
+            className="rounded-xl bg-stone-900 text-amber-50 px-4 py-2 text-sm font-medium hover:bg-stone-800 shadow-sm disabled:opacity-50"
+          >
+            {busy ? "Saving…" : existing ? "Update item" : "Add item"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -658,14 +1203,14 @@ function AssignmentModal({
   return (
     <div className="fixed inset-0 bg-black/40 z-30 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
-        <div className="text-sm text-stone-500">Assign trucks</div>
+        <div className="text-sm text-stone-500">Assign locations</div>
         <h2 className="text-xl font-semibold text-stone-900 mt-1">{item.name}</h2>
         <p className="text-xs text-stone-500 mt-1">
-          Trucks selected here can see and submit this item.
+          Locations selected here can see and order this item.
         </p>
 
         {trucks.length === 0 ? (
-          <div className="mt-4 text-sm text-stone-500">No trucks exist yet.</div>
+          <div className="mt-4 text-sm text-stone-500">No locations exist yet.</div>
         ) : (
           <div className="mt-4 flex flex-wrap gap-2 max-h-72 overflow-y-auto">
             {trucks.map((t) => {
