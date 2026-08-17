@@ -51,7 +51,7 @@ export default function Login() {
         <View className="w-full max-w-sm bg-white border border-stone-300 rounded-3xl p-6 shadow-xl">
           <View className="flex-row items-center gap-2">
             <View className="w-8 h-8 rounded-xl bg-amber-800" />
-            <Text className="text-2xl font-bold text-stone-900">Inventory Logger</Text>
+            <Text className="text-2xl font-bold text-stone-900">True Barista</Text>
           </View>
           <Text className="text-sm text-stone-600 mt-2">
             {mode === "truck" ? "Location sign-in" : "Admin sign-in"}

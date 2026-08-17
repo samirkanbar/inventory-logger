@@ -26,13 +26,15 @@ export default function AdminRequests() {
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<"open" | "history">("open");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       const r = await api<{ requests: RequestRow[] }>("/requests");
       setRows(r.requests);
-    } catch {
-      // ignore; pull to refresh to retry
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message || "Couldn't load requests");
     }
   }, []);
 
@@ -60,8 +62,10 @@ export default function AdminRequests() {
             : row
         )
       );
-    } catch {
-      // leave row as-is on failure
+      setError(null);
+    } catch (e: any) {
+      // The row keeps its old status, so the admin can see it didn't take.
+      setError(e?.message || "Couldn't update that request — it's unchanged.");
     } finally {
       setBusyId(null);
     }
@@ -114,6 +118,14 @@ export default function AdminRequests() {
           keyExtractor={(r) => String(r.id)}
           contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 10 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#78350f" />}
+          ListHeaderComponent={
+            error ? (
+              <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-2">
+                <Text className="text-red-800 text-sm">{error}</Text>
+                <Text className="text-red-700 text-xs mt-1">Pull down to try again.</Text>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View className="bg-white border border-amber-200 rounded-2xl p-6 mt-8">
               <Text className="text-stone-600 text-center">

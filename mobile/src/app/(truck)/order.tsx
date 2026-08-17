@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -71,13 +71,23 @@ export default function Order() {
   const [title, setTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadItems = useCallback(() => {
+    setLoading(true);
     api<{ items: Item[] }>("/items")
-      .then((r) => setItems(r.items))
-      .catch(() => {})
+      .then((r) => {
+        setItems(r.items);
+        setLoadError(null);
+      })
+      .catch((e: any) => setLoadError(e?.message || "Couldn't load your item list"))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
@@ -119,6 +129,7 @@ export default function Order() {
 
   async function submit() {
     if (!title.trim()) return;
+    setSubmitError(null);
     setSubmitting(true);
     try {
       await api("/submissions", {
@@ -132,8 +143,10 @@ export default function Order() {
       setTitle("");
       setConfirming(false);
       setSubmitted(true);
-    } catch {
-      // keep modal open on failure
+    } catch (e: any) {
+      // Keep the modal open with the cart intact so they can retry — losing an
+      // order to a dropped signal is the worst thing that can happen here.
+      setSubmitError(e?.message || "Couldn't send the order. Check your signal and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -168,6 +181,16 @@ export default function Order() {
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#78350f" />
+        </View>
+      ) : loadError ? (
+        <View className="p-6 items-center">
+          <Text className="text-stone-800 text-center font-medium">{loadError}</Text>
+          <Text className="text-stone-600 text-center text-sm mt-1">
+            Your items couldn't be loaded — this is usually signal, not a missing list.
+          </Text>
+          <Pressable onPress={loadItems} className="mt-4 rounded-xl bg-stone-900 px-5 py-3">
+            <Text className="text-amber-50 font-semibold">Try again</Text>
+          </Pressable>
         </View>
       ) : items.length === 0 ? (
         <View className="p-6">
@@ -282,6 +305,15 @@ export default function Order() {
                 </View>
               ))}
             </ScrollView>
+            {submitError && (
+              <View className="mt-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                <Text className="text-red-800 text-sm">{submitError}</Text>
+                <Text className="text-red-700 text-xs mt-0.5">
+                  Your order wasn't sent. Nothing was lost — tap Submit to retry.
+                </Text>
+              </View>
+            )}
+
             <View className="flex-row gap-3 mt-4">
               <Pressable
                 onPress={() => setConfirming(false)}
