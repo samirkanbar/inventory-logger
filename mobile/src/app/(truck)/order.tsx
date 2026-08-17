@@ -155,16 +155,24 @@ export default function Order() {
   return (
     <SafeAreaView className="flex-1 bg-amber-50" edges={["top"]}>
       {/* Header */}
-      <View className="px-4 py-3 border-b border-amber-300 bg-amber-50 flex-row items-center justify-between">
-        <View>
-          <Text className="text-xs uppercase tracking-wider text-amber-800 font-semibold">
-            Location
-          </Text>
-          <Text className="font-semibold text-stone-900 text-base">{me?.label}</Text>
+      <View className="px-4 py-4 border-b border-amber-300 bg-amber-100">
+        <View className="flex-row items-start justify-between">
+          <View className="flex-1 pr-3">
+            <Text className="text-xs uppercase tracking-wider text-amber-800 font-bold">
+              {me?.label} · Weekly order
+            </Text>
+            <Text className="text-3xl font-bold text-stone-900 mt-0.5">Place an order</Text>
+            <Text className="text-sm text-stone-700 mt-1">
+              Pick everything you need this week, then review and submit.
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => logout()}
+            className="rounded-lg border border-stone-400 px-3 py-1.5"
+          >
+            <Text className="text-stone-700 text-sm font-medium">Log out</Text>
+          </Pressable>
         </View>
-        <Pressable onPress={() => logout()} className="rounded-lg border border-stone-300 px-3 py-1.5">
-          <Text className="text-stone-700 text-sm font-medium">Log out</Text>
-        </Pressable>
       </View>
 
       {/* Search */}

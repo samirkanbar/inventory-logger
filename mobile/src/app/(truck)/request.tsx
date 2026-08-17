@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "@/lib/api";
+import { categoryLabel, groupByCategory } from "@/lib/categories";
 
 interface CatalogItem {
   id: number;
@@ -33,6 +34,40 @@ export default function Request() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The whole catalog, so the list can be browsed by category instead of only
+  // searched. Someone who doesn't know what an item is called can still find it.
+  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    api<{ items: CatalogItem[] }>("/catalog?all=1")
+      .then((r) => setCatalog(r.items))
+      .catch(() => {})
+      .finally(() => setCatalogLoading(false));
+  }, []);
+
+  const grouped = useMemo(() => groupByCategory(catalog), [catalog]);
+
+  function toggleCategory(category: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }
+
+  function countInCategory(category: string): number {
+    let n = 0;
+    for (const l of lines) {
+      if (l.item_id === null) continue;
+      const it = catalog.find((c) => c.id === l.item_id);
+      if (it && categoryLabel(it.category) === category) n += l.quantity;
+    }
+    return n;
+  }
 
   // Live catalog suggestions as the truck types.
   useEffect(() => {
@@ -141,10 +176,13 @@ export default function Request() {
 
   return (
     <SafeAreaView className="flex-1 bg-amber-50" edges={["top"]}>
-      <View className="px-4 py-3 border-b border-amber-300">
-        <Text className="text-xl font-bold text-stone-900">Request items</Text>
-        <Text className="text-sm text-stone-600 mt-0.5">
-          Search to add, or type something new. Add as many as you need.
+      <View className="px-4 py-4 border-b border-amber-300 bg-amber-100">
+        <Text className="text-xs uppercase tracking-wider text-amber-800 font-bold">
+          Running low on something?
+        </Text>
+        <Text className="text-3xl font-bold text-stone-900 mt-0.5">Ask for items</Text>
+        <Text className="text-sm text-stone-700 mt-1">
+          Tell your admin what you need. Browse a category below, search, or add something new.
         </Text>
       </View>
 
@@ -190,12 +228,112 @@ export default function Request() {
 
       {/* The request list */}
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
-        {lines.length === 0 ? (
-          <View className="bg-white border border-amber-200 rounded-2xl p-6 mt-2">
-            <Text className="text-stone-600 text-center">
-              Nothing added yet. Search above and tap to build your list.
-            </Text>
+        {/* Browse by category whenever they aren't actively searching. */}
+        {term.length === 0 && (
+          <View className="mb-4">
+            <Text className="text-sm font-semibold text-stone-800 mb-2">Browse by category</Text>
+            {catalogLoading ? (
+              <ActivityIndicator color="#78350f" className="my-4" />
+            ) : grouped.length === 0 ? (
+              <View className="bg-white border border-amber-200 rounded-2xl p-4">
+                <Text className="text-stone-600 text-center text-sm">
+                  No catalog items yet. You can still type a name above to ask for something new.
+                </Text>
+              </View>
+            ) : (
+              <View className="gap-2">
+                {grouped.map(({ category, items: groupItems }) => {
+                  const open = expanded.has(category);
+                  const inList = countInCategory(category);
+                  return (
+                    <View
+                      key={category}
+                      className="rounded-2xl border border-stone-300 overflow-hidden bg-white"
+                    >
+                      <Pressable
+                        onPress={() => toggleCategory(category)}
+                        className="flex-row items-center justify-between px-4 py-3 bg-amber-200"
+                      >
+                        <View className="flex-row items-center gap-3 flex-shrink">
+                          <Text className="font-bold uppercase text-sm text-stone-900">
+                            {category}
+                          </Text>
+                          <Text className="text-xs text-stone-500">
+                            {groupItems.length} item{groupItems.length === 1 ? "" : "s"}
+                          </Text>
+                        </View>
+                        <View className="flex-row items-center gap-2">
+                          {inList > 0 && (
+                            <View className="bg-amber-700 rounded-full px-2 py-0.5">
+                              <Text className="text-amber-50 text-xs font-semibold">
+                                {inList} added
+                              </Text>
+                            </View>
+                          )}
+                          <Text className="text-stone-500">{open ? "▴" : "▾"}</Text>
+                        </View>
+                      </Pressable>
+
+                      {open && (
+                        <View>
+                          {groupItems.map((it) => {
+                            const already = lines.find((l) => l.item_id === it.id);
+                            return (
+                              <Pressable
+                                key={it.id}
+                                onPress={() => addCatalog(it)}
+                                className={`flex-row items-center justify-between px-4 py-3 border-t border-stone-200 ${
+                                  already ? "bg-amber-50" : "bg-white"
+                                }`}
+                              >
+                                <View className="flex-1 pr-3">
+                                  <Text className="font-bold text-stone-900">{it.name}</Text>
+                                  {it.unit && (
+                                    <Text className="text-xs text-stone-500 mt-0.5">
+                                      per {it.unit}
+                                    </Text>
+                                  )}
+                                </View>
+                                {already ? (
+                                  <View className="rounded-lg bg-amber-100 border border-amber-300 px-3 py-1.5">
+                                    <Text className="text-amber-900 font-semibold text-sm">
+                                      ✓ {already.quantity}
+                                    </Text>
+                                  </View>
+                                ) : (
+                                  <View className="rounded-lg bg-amber-700 px-4 py-2">
+                                    <Text className="text-amber-50 font-semibold text-sm">
+                                      + Add
+                                    </Text>
+                                  </View>
+                                )}
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
+        )}
+
+        {lines.length > 0 && (
+          <Text className="text-sm font-semibold text-stone-800 mb-2">
+            Your list ({lines.length})
+          </Text>
+        )}
+
+        {lines.length === 0 ? (
+          term.length === 0 ? null : (
+            <View className="bg-white border border-amber-200 rounded-2xl p-6 mt-2">
+              <Text className="text-stone-600 text-center">
+                Nothing added yet. Tap a result above to build your list.
+              </Text>
+            </View>
+          )
         ) : (
           <View className="gap-2">
             {lines.map((l) => (

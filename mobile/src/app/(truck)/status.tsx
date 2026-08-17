@@ -64,10 +64,13 @@ export default function MyRequests() {
 
   return (
     <SafeAreaView className="flex-1 bg-amber-50" edges={["top"]}>
-      <View className="px-4 py-3 border-b border-amber-300">
-        <Text className="text-xl font-bold text-stone-900">My requests</Text>
-        <Text className="text-sm text-stone-600 mt-0.5">
-          What you've asked for and where it stands.
+      <View className="px-4 py-4 border-b border-amber-300 bg-amber-100">
+        <Text className="text-xs uppercase tracking-wider text-amber-800 font-bold">
+          Nothing to do here — just checking
+        </Text>
+        <Text className="text-3xl font-bold text-stone-900 mt-0.5">My requests</Text>
+        <Text className="text-sm text-stone-700 mt-1">
+          What you've asked for and whether your admin has sent it.
         </Text>
       </View>
 
