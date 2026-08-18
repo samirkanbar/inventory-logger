@@ -167,12 +167,98 @@ export default async (req: Request) => {
     summary.push([], ["GRAND TOTAL", allOrders.size, grandQty, grandCents / 100]);
     const grandRow = summary.length - 1;
 
+    // This tab is totals only. Point at the tabs that carry the line items.
+    summary.push(
+      [],
+      ["This tab shows totals only."],
+      ["For every item on every order, see the 'All Orders' tab."],
+      ["For one location at a time, see its own tab."]
+    );
+
     const ws = XLSX.utils.aoa_to_sheet(summary);
     for (let r = truckStart; r <= truckEnd; r++) money(ws, `D${r + 1}`);
     for (let r = dayStart; r <= dayEnd; r++) money(ws, `D${r + 1}`);
     money(ws, `D${grandRow + 1}`);
     ws["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, ws, safeSheetName("Summary", usedNames));
+  }
+
+  // ---- Sheet 2: every order, in date order, with its line items ------------
+  // The summary only carries totals. This is the combined view: each order
+  // spelled out the way a single submission export looks, one after another.
+  if (rows.length > 0) {
+    const orders = new Map<
+      number,
+      { day: string; truck: string; title: string; at: string; lines: Row[] }
+    >();
+    for (const r of rows) {
+      const sid = Number(r.submission_id);
+      if (!orders.has(sid)) {
+        orders.set(sid, {
+          day: r.day,
+          truck: r.truck_name,
+          title: r.title,
+          at: r.submitted_at,
+          lines: [],
+        });
+      }
+      orders.get(sid)!.lines.push(r);
+    }
+
+    const ordered = Array.from(orders.entries()).sort((a, b) => {
+      if (a[1].at !== b[1].at) return a[1].at < b[1].at ? -1 : 1;
+      return a[0] - b[0];
+    });
+
+    const aoa: (string | number)[][] = [
+      ["All Orders"],
+      [`${from} to ${to}`, "", "", ""],
+      [`${ordered.length} order${ordered.length === 1 ? "" : "s"}`, "", "", ""],
+      [],
+    ];
+    const moneyRows: number[] = [];
+    let lastDay = "";
+
+    for (const [sid, o] of ordered) {
+      // A date banner whenever the day changes, so orders stay visually
+      // separated by date rather than running together.
+      if (o.day !== lastDay) {
+        if (lastDay !== "") aoa.push([]);
+        aoa.push([`━━━  ${o.day}  ━━━`]);
+        lastDay = o.day;
+      }
+
+      aoa.push([`${o.truck}  ·  ${o.title}  (order #${sid})`]);
+      aoa.push(["Item", "Qty", "Unit price", "Line total"]);
+
+      let orderCents = 0;
+      for (const l of o.lines) {
+        const lineCents = Number(l.quantity) * Number(l.unit_price_cents);
+        orderCents += lineCents;
+        aoa.push([
+          l.item_name,
+          Number(l.quantity),
+          Number(l.unit_price_cents) / 100,
+          lineCents / 100,
+        ]);
+        moneyRows.push(aoa.length - 1);
+      }
+
+      aoa.push(["", "", "Order total", orderCents / 100]);
+      moneyRows.push(aoa.length - 1);
+      aoa.push([]);
+    }
+
+    aoa.push(["", "", "REPORT TOTAL", grandCents / 100]);
+    moneyRows.push(aoa.length - 1);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    for (const r of moneyRows) {
+      money(ws, `C${r + 1}`);
+      money(ws, `D${r + 1}`);
+    }
+    ws["!cols"] = [{ wch: 42 }, { wch: 8 }, { wch: 14 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws, safeSheetName("All Orders", usedNames));
   }
 
   // ---- One sheet per location, sectioned by date ---------------------------
